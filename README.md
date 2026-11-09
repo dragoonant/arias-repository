@@ -22,6 +22,7 @@ To update the Pages site, copy the contents of `public/` to the `gh-pages` branc
   | Medic | Pulse Pistol | **Heal Burst**: heals you and nearby teammates |
 
 - **Melee and throwables**: everyone carries a Combat Knife (press 2, or V for a quick swing). Hit someone from behind for a backstab. Unlock a **Katana** that lunges and hits everyone in front of you, then the **Dragon Katana**. **Throwing Knives** add a third slot, and **Frag Grenades** (G) bounce and explode.
+- **Live leaderboard**: the top 3 players by kills are shown at the top of the screen, and the leader wears a gold crown that everyone can see. You get a message whenever the lead changes.
 - **Coins and the Armory**: every elimination earns coins, with bonuses for headshots, melee kills, backstabs, knife throws, grenades and kill streaks. Spend them in the Armory (main menu, or press B mid-match) on blades, permanent upgrades (bigger mags, faster reloads, more damage, body armor, faster boots) and supplies (grenades, med kits). Coins and unlocks are saved in your browser.
 - **4 maps**: Rust Yard (shipping containers and a crane tower), Dune Outpost (desert fort ruins), Neon District (a city at night) and Frost Peak (snowy plateaus).
 - **2 modes**: Free-for-all, or Team battle (Red vs Blue).

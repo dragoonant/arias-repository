@@ -29,6 +29,7 @@ const DIFFICULTY = {
 const PREFERRED_RANGE = { heavy: 7, scout: 10, assault: 16, medic: 13, sniper: 30 };
 const TEAM_COLORS = { red: 0xe0453a, blue: 0x3a8be0 };
 const SLOT_CODES = { g: 'gun', m: 'melee', t: 'throw' };
+const CROWN_SVG = '<svg class="crown-ico" viewBox="0 0 24 16" aria-hidden="true"><path d="M2 13 L3.5 3 L8.5 8.5 L12 1.5 L15.5 8.5 L20.5 3 L22 13 Z"/><rect x="2" y="13.5" width="20" height="2.5" rx="1"/></svg>';
 const SLOT_ORDER = ['gun', 'melee', 'throw'];
 
 const $ = (id) => document.getElementById(id);
@@ -667,7 +668,7 @@ export class Game {
       scoreboard: $('scoreboard'), pause: $('pause-overlay'),
       toast: $('toast'), banner: $('kill-banner'), status: $('status-effects'),
       touch: $('touch-controls'),
-      slots: $('slots'), coins: $('coins-amount'), coinPopup: $('coin-popup'),
+      slots: $('slots'), leaderboard: $('leaderboard'), coins: $('coins-amount'), coinPopup: $('coin-popup'),
     };
     this.hud.root.hidden = false;
     this.hud.killfeed.innerHTML = '';
@@ -947,6 +948,7 @@ export class Game {
       if (!c.isLocal && !c.isBot && !ids.has(id)) this.removeChar(id);
     }
     if (hostId !== undefined) this.setHost(hostId);
+    this.updateScoreHUD();
   }
 
   setHost(hostId) {
@@ -2296,6 +2298,7 @@ export class Game {
     if (c.fortified) effects.push('FORTIFIED');
     if (c.role === 'assault' && active) effects.push('ADRENALINE');
     if (c.spawnProtectUntil && t < c.spawnProtectUntil) effects.push('SPAWN SHIELD');
+    if (this.leaderId === this.myId) effects.push('IN THE LEAD');
     this.hud.status.textContent = effects.join(' · ');
 
     if (this.endAt) {
@@ -2321,13 +2324,77 @@ export class Game {
       this.hud.score.innerHTML = `<span class="team-red">RED ${ts.red}</span> <span class="vs">vs</span> <span class="team-blue">${ts.blue} BLUE</span> <span class="limit">to ${limit}</span>`;
     } else {
       const mine = this.scores[this.myId]?.k || 0;
-      let leader = null, lk = -1;
-      for (const [id, s] of Object.entries(this.scores)) {
-        if (this.chars.has(id) && s.k > lk) { lk = s.k; leader = id; }
-      }
-      const leadText = lk <= 0 ? '' : leader && leader !== this.myId ? ` · Leader: ${this.escape(this.nameOf(leader))} ${lk}` : leader === this.myId && lk > 0 ? ' · You lead' : '';
-      this.hud.score.innerHTML = `<span class="mine">${mine}</span> kills${leadText} <span class="limit">to ${limit}</span>`;
+      this.hud.score.innerHTML = `<span class="mine">${mine}</span> kills <span class="limit">· first to ${limit}</span>`;
     }
+    const rank = this.ranking();
+    this.updateLeader(rank);
+    this.renderLeaderboard(rank);
+  }
+
+  // Everyone in the match, most kills first. Ties keep the current leader on top.
+  ranking() {
+    return Object.entries(this.scores)
+      .filter(([id]) => this.chars.has(id))
+      .map(([id, s]) => ({ id, k: s.k, d: s.d, c: this.chars.get(id) }))
+      .sort((a, b) => b.k - a.k
+        || (a.id === this.leaderId ? -1 : b.id === this.leaderId ? 1 : 0)
+        || a.d - b.d);
+  }
+
+  updateLeader(rank) {
+    const top = rank[0];
+    const leader = top && top.k > 0 ? top.id : null;
+    if (leader === this.leaderId) return;
+    const first = this.leaderId === undefined;
+    this.leaderId = leader;
+    this.placeCrown();
+    if (first || !leader) return;
+    if (leader === this.myId) {
+      this.showBanner('YOU TOOK THE LEAD');
+    } else {
+      this.toast(`${this.nameOf(leader)} took the lead with ${top.k} ${top.k === 1 ? 'kill' : 'kills'}`, 2200);
+    }
+  }
+
+  // A gold crown floats over the leader's head so everyone can see who to hunt.
+  placeCrown() {
+    if (!this.crown) {
+      const gold = new THREE.MeshStandardMaterial({ color: 0xffc83d, emissive: 0xb07800, emissiveIntensity: 0.6, roughness: 0.3, metalness: 0.4 });
+      const crown = new THREE.Group();
+      const band = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.18, 0.1, 16, 1, true), gold);
+      band.material.side = THREE.DoubleSide;
+      crown.add(band);
+      for (let i = 0; i < 5; i++) {
+        const a = (i / 5) * Math.PI * 2;
+        const spike = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.13, 6), gold);
+        spike.position.set(Math.cos(a) * 0.18, 0.11, Math.sin(a) * 0.18);
+        const gem = new THREE.Mesh(new THREE.SphereGeometry(0.025, 8, 6), new THREE.MeshBasicMaterial({ color: i % 2 ? 0xff3b5c : 0x3bd1ff }));
+        gem.position.set(Math.cos(a) * 0.205, 0, Math.sin(a) * 0.205);
+        crown.add(spike, gem);
+      }
+      this.crown = crown;
+    }
+    if (this.crown.parent) this.crown.parent.remove(this.crown);
+    const c = this.leaderId ? this.chars.get(this.leaderId) : null;
+    if (c && c.group) {
+      this.crown.position.set(0, 2.0, 0);
+      c.group.add(this.crown);
+    }
+  }
+
+  renderLeaderboard(rank) {
+    const el = this.hud.leaderboard;
+    if (!el) return;
+    const meIdx = rank.findIndex((r) => r.id === this.myId);
+    const chip = (r, i) => {
+      const lead = i === 0 && r.k > 0;
+      const cls = ['lb-chip', lead ? 'lead' : '', r.id === this.myId ? 'me' : '', r.c?.team ? 't-' + r.c.team : ''].join(' ');
+      const name = r.id === this.myId ? 'You' : this.escape(this.nameOf(r.id));
+      return `<span class="${cls}"><b>${i + 1}</b>${lead ? CROWN_SVG : ''}<span class="lb-name">${name}</span><span class="lb-k">${r.k}</span></span>`;
+    };
+    let html = rank.slice(0, 3).map(chip).join('');
+    if (meIdx >= 3) html += `<span class="lb-gap">…</span>${chip(rank[meIdx], meIdx)}`;
+    el.innerHTML = html;
   }
 
   escape(s) {
@@ -2336,7 +2403,7 @@ export class Game {
 
   renderScoreboard() {
     const r = this.results();
-    const row = (p) => `<tr class="${p.id === this.myId ? 'me' : ''}"><td>${this.escape(p.name)}${p.bot ? ' <small>BOT</small>' : ''}</td><td>${ROLES[p.role]?.name || ''}</td><td>${p.k}</td><td>${p.d}</td></tr>`;
+    const row = (p) => `<tr class="${p.id === this.myId ? 'me' : ''}"><td>${p.id === this.leaderId ? CROWN_SVG + ' ' : ''}${this.escape(p.name)}${p.bot ? ' <small>BOT</small>' : ''}</td><td>${ROLES[p.role]?.name || ''}</td><td>${p.k}</td><td>${p.d}</td></tr>`;
     const head = '<tr><th>Player</th><th>Role</th><th>K</th><th>D</th></tr>';
     let html = `<h3>${this.map.name} · ${this.mode === 'tdm' ? 'Team Deathmatch' : 'Free-for-all'}</h3>`;
     if (this.mode === 'tdm') {
@@ -2459,6 +2526,7 @@ export class Game {
       this.updateCharVisual(c, dt);
     }
     this.updateEffects();
+    if (this.crown && this.crown.parent) this.crown.rotation.y += dt * 1.6;
     this.updateProjectiles(dt);
     for (const p of this.pads || []) p.ring.material.opacity = 0.45 + Math.sin(t * 2.5 + p.zone.index) * 0.2;
     if (this.snow) {
