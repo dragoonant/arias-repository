@@ -8,6 +8,7 @@
 import * as THREE from '../vendor/three.module.js';
 import { ROLES, ROLE_ORDER } from './roles.js';
 import { MAPS } from './maps.js';
+import { MELEE, THROWING, GRENADE, MEDKIT, COINS } from './weapons.js';
 
 const EYE = 1.6;
 const HEIGHT = 1.85;
@@ -27,6 +28,8 @@ const DIFFICULTY = {
 };
 const PREFERRED_RANGE = { heavy: 7, scout: 10, assault: 16, medic: 13, sniper: 30 };
 const TEAM_COLORS = { red: 0xe0453a, blue: 0x3a8be0 };
+const SLOT_CODES = { g: 'gun', m: 'melee', t: 'throw' };
+const SLOT_ORDER = ['gun', 'melee', 'throw'];
 
 const $ = (id) => document.getElementById(id);
 const now = () => performance.now() / 1000;
@@ -114,6 +117,27 @@ class Sfx {
     o.start(t);
     o.stop(t + dur + 0.02);
   }
+  noiseBurst(freq, dur, vol, type = 'lowpass', endFreq = 200) {
+    if (!this.ctx || vol < 0.02) return;
+    const t = this.ctx.currentTime;
+    const src = this.ctx.createBufferSource();
+    src.buffer = this.noise;
+    const filter = this.ctx.createBiquadFilter();
+    filter.type = type;
+    filter.frequency.setValueAtTime(freq, t);
+    filter.frequency.exponentialRampToValueAtTime(endFreq, t + dur);
+    const g = this.ctx.createGain();
+    g.gain.setValueAtTime(vol * this.volume, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    src.connect(filter).connect(g).connect(this.ctx.destination);
+    src.start(t);
+    src.stop(t + dur + 0.02);
+  }
+  swoosh(vol = 1) { this.noiseBurst(900, 0.18, 0.35 * vol, 'bandpass', 3500); }
+  slice() { this.noiseBurst(4000, 0.08, 0.3, 'highpass', 1500); this.tone(220, 0.08, 'square', 0.12); }
+  boom(vol = 1) { this.noiseBurst(1200, 0.9, 0.9 * vol, 'lowpass', 40); this.tone(70, 0.5, 'sine', 0.5 * vol, 0.5); }
+  clink() { this.tone(2400, 0.05, 'triangle', 0.12); }
+  coin() { this.tone(1320, 0.07, 'square', 0.1); setTimeout(() => this.tone(1760, 0.12, 'square', 0.1), 70); }
   hit(head) { this.tone(head ? 1600 : 1100, 0.06, 'square', 0.12); }
   kill() { this.tone(660, 0.1, 'triangle', 0.3); setTimeout(() => this.tone(990, 0.16, 'triangle', 0.3), 90); }
   hurt() { this.tone(140, 0.15, 'sawtooth', 0.18, 0.6); }
@@ -239,6 +263,11 @@ export class Game {
     this.recentShooters = new Map();
     this.touch = { move: { x: 0, y: 0 }, active: false };
     this.killStreak = 0;
+    this.wallet = opts.wallet || null; // shared with the menu; holds coins, unlocks and supplies
+    this.onWalletChange = opts.onWalletChange || (() => {});
+    this.projectiles = [];
+    this.coinsEarned = 0;
+    this.shake = 0;
 
     this.setupRenderer();
     this.buildWorld();
@@ -249,6 +278,7 @@ export class Game {
     // Local player
     const me = this.makeChar({ ...opts.me, id: this.myId, isLocal: true });
     this.me = me;
+    this.applyLoadout();
     this.respawn(me);
 
     for (const p of opts.roster || []) this.addRemotePlayer(p);
@@ -554,6 +584,37 @@ export class Game {
       new THREE.MeshBasicMaterial({ color: 0xffd27a, transparent: true, opacity: 0.95, depthWrite: false }),
     );
     this.flash.visible = false;
+    this.vmMelee = new THREE.Group();
+    this.vmThrow = new THREE.Group();
+    this.camera.add(this.vmMelee, this.vmThrow);
+    this.vmMelee.visible = this.vmThrow.visible = false;
+    this.buildBlade(this.vmThrow, MELEE.knife.blade, 0.1);
+    this.vmThrow.rotation.set(0.3, 0.2, -0.2);
+  }
+
+  // A blade + guard + handle pointing down -Z, added to `group`.
+  buildBlade(group, blade, handleLen = 0.16) {
+    while (group.children.length) group.remove(group.children[0]);
+    const steel = new THREE.MeshStandardMaterial({
+      color: blade.color, roughness: 0.25, metalness: 0.3,
+      emissive: blade.glow ? blade.color : 0x222222, emissiveIntensity: blade.glow || 0.25,
+    });
+    const dark = new THREE.MeshStandardMaterial({ color: 0x1d1f24, roughness: 0.8 });
+    const handle = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.045, handleLen), dark);
+    handle.position.z = -handleLen / 2;
+    const guard = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.03, 0.03), dark);
+    guard.position.z = -handleLen;
+    const b = new THREE.Mesh(new THREE.BoxGeometry(blade.width * 0.35, blade.width, blade.length), steel);
+    b.position.z = -handleLen - blade.length / 2;
+    const tip = new THREE.Mesh(new THREE.BoxGeometry(blade.width * 0.3, blade.width * 0.6, 0.06), steel);
+    tip.position.set(0, blade.width * 0.2, -handleLen - blade.length - 0.02);
+    group.add(handle, guard, b, tip);
+    return steel;
+  }
+
+  buildMeleeViewModel(id) {
+    const M = MELEE[id] || MELEE.knife;
+    this.vmMeleeMat = this.buildBlade(this.vmMelee, M.blade, id === 'knife' ? 0.12 : 0.24);
   }
 
   buildViewModel(role) {
@@ -606,6 +667,7 @@ export class Game {
       scoreboard: $('scoreboard'), pause: $('pause-overlay'),
       toast: $('toast'), banner: $('kill-banner'), status: $('status-effects'),
       touch: $('touch-controls'),
+      slots: $('slots'), coins: $('coins-amount'), coinPopup: $('coin-popup'),
     };
     this.hud.root.hidden = false;
     this.hud.killfeed.innerHTML = '';
@@ -625,13 +687,24 @@ export class Game {
 
     this.on(window, 'keydown', (e) => {
       if (e.target && e.target.tagName === 'INPUT') return;
+      const shop = document.getElementById('shop');
+      if (shop && !shop.hidden) return;
       this.keys.add(e.code);
       if (e.code === 'Tab') {
         e.preventDefault();
         this.renderScoreboard();
         this.hud.scoreboard.hidden = false;
       }
-      if (e.code === 'KeyR') this.startReload(this.me);
+      if (e.code === 'KeyR' && this.me.slot === 'gun') this.startReload(this.me);
+      if (this.me.alive) {
+        if (e.code === 'Digit1') this.setSlot('gun');
+        if (e.code === 'Digit2') this.setSlot('melee');
+        if (e.code === 'Digit3') this.setSlot('throw');
+        if (e.code === 'KeyV') { this.setSlot('melee'); this.meleeAttack(this.me); }
+        if (e.code === 'KeyG') this.throwGrenade(this.me);
+        if (e.code === 'KeyH') this.useMedkit();
+      }
+      if (e.code === 'KeyB' && this.opts.onOpenShop) this.opts.onOpenShop();
       if (e.code === 'KeyQ' || e.code === 'KeyE') this.useAbility(this.me);
       if (!this.me.alive && /^(Digit|Numpad)[0-9]$/.test(e.code)) {
         const n = Number(e.code.slice(-1));
@@ -662,6 +735,9 @@ export class Game {
       if (e.button === 2) this.zoom = false;
     });
     this.on(canvas, 'contextmenu', (e) => e.preventDefault());
+    this.on(window, 'wheel', (e) => {
+      if (this.locked && this.me.alive) this.cycleSlot(e.deltaY > 0 ? 1 : -1);
+    });
     this.on(document, 'pointerlockchange', () => {
       this.locked = document.pointerLockElement === canvas;
       if (!this.isTouch) this.hud.pause.hidden = this.locked || this.ended;
@@ -748,6 +824,9 @@ export class Game {
     hold('touch-zoom', () => { this.zoom = !this.zoom; });
     hold('touch-reload', () => this.startReload(this.me));
     hold('touch-ability', () => this.useAbility(this.me));
+    hold('touch-swap', () => this.cycleSlot(1));
+    hold('touch-nade', () => this.throwGrenade(this.me));
+    hold('touch-med', () => this.useMedkit());
   }
 
   // ------------------------------------------------------------ characters
@@ -764,6 +843,8 @@ export class Game {
       dashUntil: 0, dashDir: new THREE.Vector3(), lastDamageAt: -99, moving: false, walkPhase: 0,
       scale: role === 'heavy' ? 1.12 : role === 'scout' ? 0.95 : 1,
       cloaked: false, fortified: false,
+      slot: 'gun', meleeId: 'knife', nextMelee: 0, swingAt: -9, throwLeft: 0, nextThrow: 0, nextGrenade: 0,
+      hasThrowing: false, dashSpeed: 26, mods: { dmg: 1, mag: 1, reload: 1, speed: 1 },
     };
     this.knownNames[id] = name;
     if (!isLocal) this.buildCharModel(c);
@@ -809,7 +890,14 @@ export class Game {
     arms.add(box(0.14, 0.14, 0.5, bodyMat, 0.28, 0, -0.18));
     arms.add(box(0.14, 0.14, 0.45, bodyMat, -0.16, 0, -0.3));
     const m = R.weapon.model;
-    arms.add(box(m.thick * 1.2, m.thick * 1.6, m.length, mk(m.color), 0.1, 0.04, -0.45 - m.length / 3));
+    c.gunMesh = box(m.thick * 1.2, m.thick * 1.6, m.length, mk(m.color), 0.1, 0.04, -0.45 - m.length / 3);
+    arms.add(c.gunMesh);
+    const bladeMat = mk(0xd6dce6, { emissive: 0x333333 });
+    c.mats.push(bladeMat);
+    c.bladeMat = bladeMat;
+    c.blade = box(0.035, 0.07, 1, bladeMat, 0.1, 0.06, -0.8);
+    c.blade.visible = false;
+    arms.add(c.blade);
     g.add(arms);
     c.arms = arms;
     g.scale.setScalar(c.scale);
@@ -889,6 +977,7 @@ export class Game {
         role: ROLE_ORDER[Math.floor(Math.random() * ROLE_ORDER.length)],
         team, isBot: true,
       });
+      b.meleeId = Math.random() < 0.35 ? 'katana' : 'knife';
       this.initBotAI(b);
       this.respawn(b);
     }
@@ -909,8 +998,10 @@ export class Game {
     c.hv.set(0, 0, 0);
     c.hp = c.maxHp;
     c.alive = true;
-    c.mag = c.R.weapon.mag;
+    c.mag = this.magOf(c);
     c.reloadUntil = 0;
+    c.throwLeft = c.hasThrowing ? THROWING.count : 0;
+    if (c.slot === 'throw' && !c.throwLeft) c.slot = 'gun';
     c.yaw = Math.atan2(p.x, p.z); // face the middle of the map
     c.netYaw = c.yaw;
     c.pitch = 0;
@@ -921,6 +1012,7 @@ export class Game {
       c.group.rotation.x = 0;
     }
     if (c.isLocal) {
+      this.updateSlotHUD();
       this.hud.death.hidden = true;
       if (c.lastZone) this.toast(`Deployed at ${c.lastZone.name}`, 1600);
     }
@@ -1088,7 +1180,7 @@ export class Game {
       const end = origin.clone().addScaledVector(d, Math.min(res.t, W.range));
       ends.push(end);
       if (res.hitChar) {
-        const dmg = W.damage * (res.head ? (c.role === 'sniper' ? 2.5 : 1.8) : 1);
+        const dmg = W.damage * (c.mods?.dmg || 1) * (res.head ? (c.role === 'sniper' ? 2.5 : 1.8) : 1);
         const h = hits.get(res.hitChar) || { dmg: 0, head: false };
         h.dmg += dmg;
         h.head = h.head || res.head;
@@ -1126,27 +1218,27 @@ export class Game {
 
   startReload(c) {
     const t = now();
-    if (!c.alive || t < c.reloadUntil || c.mag >= c.R.weapon.mag) return;
-    c.reloadUntil = t + c.R.weapon.reload;
+    if (!c.alive || t < c.reloadUntil || c.mag >= this.magOf(c)) return;
+    c.reloadUntil = t + this.reloadOf(c);
     c.reloading = true;
     if (c.isLocal) this.sfx.reload();
   }
 
-  dealDamage(attacker, victim, dmg, head) {
+  dealDamage(attacker, victim, dmg, head, kind = 'gun') {
     if (!this.isEnemy(attacker, victim)) return;
     if (attacker.isLocal) {
       this.showHitmarker(head);
       this.sfx.hit(head);
     }
     if (victim.isLocal || (victim.isBot && this.isHost)) {
-      this.applyDamage(victim, dmg, attacker.id, head);
+      this.applyDamage(victim, dmg, attacker.id, head, kind);
     } else if (this.net) {
-      if (victim.isBot) this.net.relay({ k: 'hitBot', id: victim.id, dmg, head, by: attacker.id, team: attacker.team }, 'host');
-      else this.net.relay({ k: 'hit', dmg, head, by: attacker.id }, Number(victim.id));
+      if (victim.isBot) this.net.relay({ k: 'hitBot', id: victim.id, dmg, head, kind, by: attacker.id, team: attacker.team }, 'host');
+      else this.net.relay({ k: 'hit', dmg, head, kind, by: attacker.id }, Number(victim.id));
     }
   }
 
-  applyDamage(victim, dmg, byId, head) {
+  applyDamage(victim, dmg, byId, head, kind = 'gun') {
     const t = now();
     if (!victim.alive) return;
     if (victim.spawnProtectUntil && t < victim.spawnProtectUntil) return;
@@ -1166,10 +1258,10 @@ export class Game {
         victim.ai.reactAt = t + this.diff.react;
       }
     }
-    if (victim.hp <= 0) this.killChar(victim, byId, head);
+    if (victim.hp <= 0) this.killChar(victim, byId, head, kind);
   }
 
-  killChar(victim, byId, head) {
+  killChar(victim, byId, head, kind = 'gun') {
     victim.alive = false;
     victim.hp = 0;
     victim.deadAt = now();
@@ -1181,17 +1273,17 @@ export class Game {
       this.renderSpawnPicker();
       this.killStreak = 0;
     }
-    if (this.isHost) this.recordKill(byId, victim.id, head);
-    else if (this.net) this.net.relay({ k: 'died', victim: victim.id, by: byId, head }, 'host');
+    if (this.isHost) this.recordKill(byId, victim.id, head, kind);
+    else if (this.net) this.net.relay({ k: 'died', victim: victim.id, by: byId, head, kind }, 'host');
   }
 
   // Host only: scoreboard is authoritative here.
-  recordKill(by, victim, head) {
+  recordKill(by, victim, head, kind = 'gun') {
     this.ensureScore(by);
     this.ensureScore(victim);
     if (by !== victim) this.scores[by].k++;
     this.scores[victim].d++;
-    const msg = { k: 'kill', by, victim, head, scores: this.scores, names: { [by]: this.nameOf(by), [victim]: this.nameOf(victim) } };
+    const msg = { k: 'kill', by, victim, head, kind, scores: this.scores, names: { [by]: this.nameOf(by), [victim]: this.nameOf(victim) } };
     if (this.net) this.net.relay(msg);
     this.onKill(msg);
     this.checkWin();
@@ -1204,7 +1296,8 @@ export class Game {
     el.className = 'kf-row';
     const byC = this.chars.get(msg.by), vC = this.chars.get(msg.victim);
     const cls = (c, id) => (id === this.myId ? 'kf-me' : c?.team ? 'kf-' + c.team : '');
-    el.innerHTML = `<span class="${cls(byC, msg.by)}"></span><span class="kf-icon">${msg.head ? '◎' : '✕'}</span><span class="${cls(vC, msg.victim)}"></span>`;
+    const icon = { melee: '⟋', backstab: '⟋⟋', throw: '➶', grenade: '✹' }[msg.kind] || (msg.head ? '◎' : '✕');
+    el.innerHTML = `<span class="${cls(byC, msg.by)}"></span><span class="kf-icon">${icon}</span><span class="${cls(vC, msg.victim)}"></span>`;
     el.children[0].textContent = this.nameOf(msg.by);
     el.children[2].textContent = this.nameOf(msg.victim);
     this.hud.killfeed.prepend(el);
@@ -1214,8 +1307,10 @@ export class Game {
       this.sfx.kill();
       this.killStreak++;
       const streak = this.killStreak >= 5 ? ' · UNSTOPPABLE' : this.killStreak >= 3 ? ' · ON A STREAK' : '';
-      this.showBanner(`${msg.head ? 'HEADSHOT · ' : ''}Eliminated ${this.nameOf(msg.victim)}${streak}`);
+      const how = { melee: 'SLICED · ', backstab: 'BACKSTAB · ', throw: 'KNIFE THROW · ', grenade: 'BLOWN UP · ' }[msg.kind] || (msg.head ? 'HEADSHOT · ' : '');
+      this.showBanner(`${how}Eliminated ${this.nameOf(msg.victim)}${streak}`);
       this.showHitmarker(true, true);
+      this.awardCoins(msg, vC);
     }
     this.updateScoreHUD();
   }
@@ -1298,6 +1393,363 @@ export class Game {
     }
   }
 
+  // ------------------------------------------------------------ loadout, melee, throwables
+  magOf(c) {
+    return Math.round(c.R.weapon.mag * (c.mods?.mag || 1));
+  }
+
+  reloadOf(c) {
+    return c.R.weapon.reload * (c.mods?.reload || 1);
+  }
+
+  // Apply the shop unlocks in the wallet to the local player. Safe to call mid-match.
+  applyLoadout() {
+    const c = this.me, w = this.wallet;
+    if (!c) return;
+    const own = (w && w.owned) || {};
+    const oldMax = c.maxHp;
+    c.mods = { dmg: own.hollow ? 1.15 : 1, mag: own.mags ? 1.5 : 1, reload: own.quick ? 0.65 : 1, speed: own.boots ? 1.1 : 1 };
+    c.maxHp = c.R.hp + (own.kevlar ? 25 : 0);
+    if (c.alive && c.maxHp > oldMax) c.hp += c.maxHp - oldMax;
+    c.hp = Math.min(c.hp, c.maxHp);
+    const want = w && w.melee;
+    c.meleeId = MELEE[want] && (want === 'knife' || own[want]) ? want : 'knife';
+    const hadThrowing = c.hasThrowing;
+    c.hasThrowing = !!own.throwing;
+    if (c.hasThrowing && !hadThrowing && c.alive) c.throwLeft = THROWING.count;
+    if (!c.hasThrowing && c.slot === 'throw') c.slot = 'gun';
+    if (c.mag > this.magOf(c)) c.mag = this.magOf(c);
+    this.buildMeleeViewModel(c.meleeId);
+    this.updateSlotHUD();
+  }
+
+  setSlot(slot) {
+    const c = this.me;
+    if (!c.alive || slot === c.slot) return;
+    if (slot === 'throw') {
+      if (!c.hasThrowing) {
+        this.toast('Unlock Throwing Knives in the Armory (press B)', 1800);
+        return;
+      }
+      if (c.throwLeft <= 0) {
+        this.toast('Out of throwing knives until you respawn', 1500);
+        return;
+      }
+    }
+    c.slot = slot;
+    this.zoom = false;
+    this.slotChangedAt = now();
+    this.sfx.clink();
+    this.updateSlotHUD();
+  }
+
+  cycleSlot(dir) {
+    const c = this.me;
+    const avail = SLOT_ORDER.filter((s) => s !== 'throw' || (c.hasThrowing && c.throwLeft > 0));
+    const i = avail.indexOf(c.slot);
+    this.setSlot(avail[(i + dir + avail.length) % avail.length]);
+  }
+
+  updateSlotHUD() {
+    const el = this.hud?.slots;
+    if (!el || !this.me) return;
+    const c = this.me, w = this.wallet || {};
+    const item = (key, label, active, extra = '', dim = false) =>
+      `<div class="slot${active ? ' on' : ''}${dim ? ' dim' : ''}"><kbd>${key}</kbd><span>${label}</span>${extra ? `<b>${extra}</b>` : ''}</div>`;
+    el.innerHTML = item('1', c.R.weapon.name, c.slot === 'gun')
+      + item('2', (MELEE[c.meleeId] || MELEE.knife).name, c.slot === 'melee')
+      + (c.hasThrowing ? item('3', 'Knives', c.slot === 'throw', '×' + c.throwLeft, c.throwLeft <= 0) : '')
+      + item('G', 'Grenade', false, '×' + (w.grenade | 0), !(w.grenade > 0))
+      + item('H', 'Med Kit', false, '×' + (w.medkit | 0), !(w.medkit > 0))
+      + (this.opts.onOpenShop ? item('B', 'Armory', false) : '');
+  }
+
+  meleeAttack(c) {
+    const t = now();
+    const M = MELEE[c.meleeId] || MELEE.knife;
+    if (!c.alive || t < c.nextMelee) return;
+    c.nextMelee = t + M.delay;
+    c.swingAt = t;
+    if (c.cloaked) c.abilityUntil = 0;
+    const fwd = forwardFrom(c.yaw, 0);
+    if (M.lunge && c.onGround) {
+      c.dashDir.copy(fwd);
+      c.dashSpeed = M.lunge;
+      c.dashUntil = t + 0.13;
+    }
+    const eye = this.eyeOf(c);
+    const targets = [];
+    for (const o of this.chars.values()) {
+      if (!o.alive || !this.isEnemy(c, o) || o.netSeen === false) continue;
+      const to = o.pos.clone().sub(c.pos);
+      const dy = to.y;
+      to.y = 0;
+      const dist = to.length() - RADIUS * o.scale;
+      if (dist > M.reach || Math.abs(dy) > 1.7) continue;
+      to.normalize();
+      const ang = Math.acos(Math.max(-1, Math.min(1, to.dot(fwd))));
+      if (dist > 0.5 && ang > M.arc) continue;
+      const chest = new THREE.Vector3(o.pos.x, o.pos.y + 1.1 * o.scale, o.pos.z);
+      const d = chest.clone().sub(eye);
+      const dl = d.length();
+      d.divideScalar(dl);
+      if (this.traceWorld(eye, d, dl) < dl - 0.2) continue;
+      targets.push({ o, dist, chest });
+    }
+    targets.sort((a, b) => a.dist - b.dist);
+    const hitList = M.cleave ? targets : targets.slice(0, 1);
+    for (const { o, chest } of hitList) {
+      // Behind the victim? Their facing direction points away from the attacker.
+      const away = o.pos.clone().sub(c.pos).setY(0).normalize();
+      const back = forwardFrom(o.yaw, 0).dot(away) > 0.45;
+      const dmg = Math.round(M.damage * (back ? M.backstab : 1));
+      this.dealDamage(c, o, dmg, back, back ? 'backstab' : 'melee');
+      this.spawnSpark(chest);
+    }
+    const audible = c.isLocal ? 1 : Math.max(0, 1 - this.camera.position.distanceTo(c.pos) / 30);
+    this.sfx.swoosh(audible);
+    if (hitList.length && c.isLocal) this.sfx.slice();
+    if (this.net && (c.isLocal || (c.isBot && this.isHost))) this.net.relay({ k: 'swing', id: c.id });
+  }
+
+  throwKnife(c) {
+    const t = now();
+    if (!c.alive || t < c.nextThrow || c.throwLeft <= 0) return;
+    c.throwLeft--;
+    c.nextThrow = t + THROWING.delay;
+    c.swingAt = t;
+    const dir = forwardFrom(c.yaw, c.pitch);
+    const o = (c.isLocal ? this.camera.getWorldPosition(new THREE.Vector3()) : this.eyeOf(c)).addScaledVector(dir, 0.5);
+    const v = dir.clone().multiplyScalar(THROWING.speed).add(new THREE.Vector3(0, 1.2, 0));
+    this.launch('knife', c, o, v);
+    this.sfx.swoosh(1);
+    if (c.isLocal) this.updateSlotHUD();
+  }
+
+  throwGrenade(c) {
+    const t = now();
+    if (!c.alive || t < c.nextGrenade) return;
+    if (!this.wallet || !(this.wallet.grenade > 0)) {
+      this.toast('No grenades left · buy more in the Armory (press B)', 1800);
+      return;
+    }
+    c.nextGrenade = t + 0.9;
+    this.wallet.grenade--;
+    this.onWalletChange();
+    const dir = forwardFrom(c.yaw, c.pitch);
+    const o = this.camera.getWorldPosition(new THREE.Vector3()).addScaledVector(dir, 0.5);
+    const v = dir.clone().multiplyScalar(GRENADE.speed).add(new THREE.Vector3(0, 4, 0));
+    this.launch('grenade', c, o, v);
+    this.sfx.swoosh(0.8);
+    this.updateSlotHUD();
+  }
+
+  useMedkit() {
+    const c = this.me;
+    if (!c.alive) return;
+    if (!this.wallet || !(this.wallet.medkit > 0)) {
+      this.toast('No med kits · buy them in the Armory (press B)', 1800);
+      return;
+    }
+    if (c.hp >= c.maxHp) {
+      this.toast('Already at full health', 1200);
+      return;
+    }
+    this.wallet.medkit--;
+    this.onWalletChange();
+    c.hp = Math.min(c.maxHp, c.hp + MEDKIT.heal);
+    this.spawnHealRing(c.pos);
+    this.sfx.ability();
+    this.toast(`+${MEDKIT.heal} health`, 1200);
+    this.updateSlotHUD();
+  }
+
+  launch(type, owner, o, v) {
+    this.spawnProjectile(type, owner, o, v, true);
+    if (this.net) {
+      const r2 = (x) => [+x.x.toFixed(2), +x.y.toFixed(2), +x.z.toFixed(2)];
+      this.net.relay({ k: 'proj', id: owner.id, type, o: r2(o), v: r2(v) });
+    }
+  }
+
+  // `auth` projectiles belong to this browser and deal damage; the rest are visuals of a friend's throw.
+  spawnProjectile(type, owner, o, v, auth) {
+    let mesh;
+    if (type === 'knife') {
+      mesh = new THREE.Group();
+      this.buildBlade(mesh, MELEE.knife.blade, 0.1);
+    } else {
+      mesh = new THREE.Group();
+      const body = new THREE.Mesh(new THREE.SphereGeometry(0.11, 12, 10), new THREE.MeshStandardMaterial({ color: 0x3d4a2c, roughness: 0.7 }));
+      const cap = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.07, 0.06), new THREE.MeshStandardMaterial({ color: 0x888888 }));
+      cap.position.y = 0.12;
+      mesh.add(body, cap);
+    }
+    mesh.position.copy(o);
+    this.scene.add(mesh);
+    this.projectiles.push({ type, owner, pos: o.clone(), vel: v.clone(), mesh, born: now(), auth, stuck: false });
+  }
+
+  updateProjectiles(dt) {
+    const t = now();
+    this.projectiles = this.projectiles.filter((p) => {
+      const remove = () => {
+        this.scene.remove(p.mesh);
+        return false;
+      };
+      if (p.type === 'knife') {
+        if (p.stuck) return t - p.stuckAt > 4 ? remove() : true;
+        if (t - p.born > 5) return remove();
+        p.vel.y -= THROWING.gravity * dt;
+        const step = p.vel.clone().multiplyScalar(dt);
+        const len = step.length();
+        const dir = step.clone().divideScalar(len);
+        const res = this.traceShot(p.pos, dir, len, p.owner);
+        if (res.hitChar) {
+          if (p.auth) this.dealDamage(p.owner, res.hitChar, Math.round(THROWING.damage * (res.head ? 2 : 1)), res.head, 'throw');
+          return remove();
+        }
+        const tw = this.traceWorld(p.pos, dir, len);
+        if (tw < len) {
+          p.pos.addScaledVector(dir, Math.max(0, tw - 0.08));
+          p.stuck = true;
+          p.stuckAt = t;
+          p.mesh.position.copy(p.pos);
+          this.spawnSpark(p.pos);
+          this.sfx.clink();
+          return true;
+        }
+        p.pos.add(step);
+        p.mesh.position.copy(p.pos);
+        p.mesh.lookAt(p.pos.clone().add(dir));
+        p.mesh.rotateX(-(t - p.born) * 25);
+        return true;
+      }
+      // grenade: bounce around, then explode
+      p.vel.y -= 20 * dt;
+      const step = p.vel.clone().multiplyScalar(dt);
+      const pad = 0.14;
+      if (Math.abs(step.x) > 1e-5) {
+        const dx = new THREE.Vector3(Math.sign(step.x), 0, 0);
+        if (this.traceWorld(p.pos, dx, Math.abs(step.x) + pad) < Math.abs(step.x) + pad) { p.vel.x *= -0.45; step.x = 0; }
+      }
+      if (Math.abs(step.z) > 1e-5) {
+        const dz = new THREE.Vector3(0, 0, Math.sign(step.z));
+        if (this.traceWorld(p.pos, dz, Math.abs(step.z) + pad) < Math.abs(step.z) + pad) { p.vel.z *= -0.45; step.z = 0; }
+      }
+      p.pos.x += step.x;
+      p.pos.z += step.z;
+      const ground = this.groundAt(p.pos, 0.05, p.pos.y - 0.12);
+      let ny = p.pos.y + step.y;
+      if (ny - 0.12 <= ground && p.vel.y < 0) {
+        ny = ground + 0.12;
+        if (Math.abs(p.vel.y) > 2) this.sfx.clink();
+        p.vel.y = Math.abs(p.vel.y) < 1.5 ? 0 : -p.vel.y * 0.4;
+        p.vel.x *= 0.7;
+        p.vel.z *= 0.7;
+      }
+      p.pos.y = ny;
+      p.mesh.position.copy(p.pos);
+      p.mesh.rotation.x += dt * 8;
+      if (t - p.born >= GRENADE.fuse) {
+        this.explode(p);
+        return remove();
+      }
+      return true;
+    });
+  }
+
+  explode(p) {
+    const center = p.pos.clone();
+    const ball = new THREE.Mesh(
+      new THREE.SphereGeometry(1, 20, 14),
+      new THREE.MeshBasicMaterial({ color: 0xffa040, transparent: true, opacity: 0.85, depthWrite: false }),
+    );
+    ball.position.copy(center);
+    this.scene.add(ball);
+    const light = new THREE.PointLight(0xff9a3c, 8, GRENADE.radius * 3);
+    light.position.copy(center).add(new THREE.Vector3(0, 0.5, 0));
+    this.scene.add(light);
+    const start = now();
+    this.effects.push({
+      obj: ball, until: start + 0.45, extra: light,
+      update: (k) => {
+        ball.scale.setScalar(0.3 + k * GRENADE.radius * 0.7);
+        ball.material.opacity = 0.85 * (1 - k);
+        light.intensity = 8 * (1 - k);
+      },
+    });
+    const dist = this.camera.position.distanceTo(center);
+    this.sfx.boom(Math.max(0.1, 1 - dist / 60));
+    this.shake = Math.max(this.shake, Math.max(0, 1 - dist / (GRENADE.radius * 3)));
+    if (!p.auth) return;
+    const from = center.clone().add(new THREE.Vector3(0, 0.3, 0));
+    for (const o of this.chars.values()) {
+      if (!o.alive || o.netSeen === false) continue;
+      const chest = new THREE.Vector3(o.pos.x, o.pos.y + 1 * o.scale, o.pos.z);
+      const d = chest.distanceTo(center);
+      if (d > GRENADE.radius) continue;
+      const dir = chest.clone().sub(from);
+      const dl = dir.length();
+      dir.divideScalar(dl);
+      if (this.traceWorld(from, dir, dl) < dl - 0.3) continue;
+      const dmg = Math.round(GRENADE.damage * Math.pow(1 - d / GRENADE.radius, 0.7));
+      if (dmg < 1) continue;
+      if (o === p.owner) {
+        if (o.isLocal) this.applyDamage(o, Math.round(dmg * 0.5), o.id, false, 'grenade');
+      } else if (this.isEnemy(p.owner, o)) {
+        this.dealDamage(p.owner, o, dmg, false, 'grenade');
+      }
+    }
+  }
+
+  // First-person blade / throwing-knife animation.
+  animateHeldBlades(c, t, bob) {
+    const M = MELEE[c.meleeId] || MELEE.knife;
+    this.vmMelee.visible = c.slot === 'melee';
+    this.vmThrow.visible = c.slot === 'throw' && c.throwLeft > 0 && t >= c.nextThrow - 0.15;
+    const raise = Math.min(1, (t - (this.slotChangedAt || 0)) / 0.18);
+    if (this.vmMelee.visible) {
+      const sw = (t - c.swingAt) / Math.min(0.32, M.delay * 0.8);
+      const k = sw >= 0 && sw < 1 ? sw : -1;
+      if (k >= 0) {
+        const e = Math.sin(k * Math.PI * 0.5);
+        this.vmMelee.position.set(0.32 - e * 0.55, -0.22 + Math.sin(k * Math.PI) * 0.06, -0.42);
+        this.vmMelee.rotation.set(0.15 - e * 0.25, 0.9 - e * 2.1, -0.7 + e * 1.4);
+      } else {
+        this.vmMelee.position.set(0.3, -0.3 + bob * 0.5 - (1 - raise) * 0.3, -0.4);
+        this.vmMelee.rotation.set(0.55, 0.35, -0.35);
+      }
+    }
+    if (this.vmThrow.visible) {
+      this.vmThrow.position.set(0.28, -0.24 + bob * 0.5 - (1 - raise) * 0.3, -0.38);
+    }
+  }
+
+  awardCoins(msg, victim) {
+    if (!this.wallet) return;
+    let amount = COINS.kill;
+    if (msg.kind === 'gun' && msg.head) amount += COINS.headshot;
+    if (msg.kind === 'melee') amount += COINS.melee;
+    if (msg.kind === 'backstab') amount += COINS.backstab;
+    if (msg.kind === 'throw') amount += COINS.throw;
+    if (msg.kind === 'grenade') amount += COINS.grenade;
+    if (this.killStreak >= 3) amount += Math.min(COINS.streakCap, COINS.streakStep * (this.killStreak - 2));
+    const mult = victim?.isBot ? COINS.vsBot[this.settings.difficulty] || 1 : COINS.vsPlayer;
+    amount = Math.max(5, Math.round((amount * mult) / 5) * 5);
+    this.wallet.coins += amount;
+    this.coinsEarned += amount;
+    this.onWalletChange();
+    this.sfx.coin();
+    const el = this.hud.coinPopup;
+    if (el) {
+      el.textContent = `+${amount}`;
+      el.classList.remove('show');
+      void el.offsetWidth;
+      el.classList.add('show');
+    }
+  }
+
   // ------------------------------------------------------------ effects
   spawnTracer(a, b) {
     const len = a.distanceTo(b);
@@ -1330,8 +1782,10 @@ export class Game {
     this.effects = this.effects.filter((e) => {
       if (t >= e.until) {
         this.scene.remove(e.obj);
+        if (e.extra) this.scene.remove(e.extra);
         return false;
       }
+      if (e.update) e.update(Math.min(1, (t - (e.until - 0.45)) / 0.45));
       if (e.grow) e.obj.scale.multiplyScalar(0.85);
       if (e.ring) e.obj.scale.setScalar(1 + (t - e.start) * 12);
       return true;
@@ -1392,12 +1846,14 @@ export class Game {
 
     const adrenaline = c.role === 'assault' && t < c.abilityUntil;
     const sprint = k.has('ShiftLeft') || k.has('ShiftRight');
-    let speed = c.R.speed * (sprint && fz < 0 ? 1.3 : 1) * (adrenaline ? 1.2 : 1) * (this.zoom ? 0.55 : 1);
+    const meleeOut = c.slot === 'melee' ? (MELEE[c.meleeId] || MELEE.knife).moveBonus : 1;
+    const zooming = this.zoom && c.slot === 'gun';
+    let speed = c.R.speed * c.mods.speed * meleeOut * (sprint && fz < 0 ? 1.3 : 1) * (adrenaline ? 1.2 : 1) * (zooming ? 0.55 : 1);
     const sin = Math.sin(c.yaw), cos = Math.cos(c.yaw);
     const want = new THREE.Vector3((fx * cos + fz * sin) * speed, 0, (-fx * sin + fz * cos) * speed);
     const accel = c.onGround ? 14 : 3;
     c.hv.lerp(want, 1 - Math.exp(-accel * dt));
-    if (t < c.dashUntil) c.hv.copy(c.dashDir).multiplyScalar(26);
+    if (t < c.dashUntil) c.hv.copy(c.dashDir).multiplyScalar(c.dashSpeed || 26);
     if (k.has('Space') && c.onGround) {
       c.vy = JUMP_V;
       c.onGround = false;
@@ -1410,13 +1866,23 @@ export class Game {
     const W = c.R.weapon;
     if (c.reloading && t >= c.reloadUntil) {
       c.reloading = false;
-      c.mag = W.mag;
+      c.mag = this.magOf(c);
     }
-    if (this.mouseDown && (W.auto || !this.firedSincePress)) {
-      if (t >= c.nextFire && t >= c.reloadUntil) {
-        this.fire(c);
+    if (c.slot === 'gun') {
+      if (this.mouseDown && (W.auto || !this.firedSincePress)) {
+        if (t >= c.nextFire && t >= c.reloadUntil) {
+          this.fire(c);
+          this.firedSincePress = true;
+        }
+      }
+    } else if (c.slot === 'melee') {
+      if (this.mouseDown) this.meleeAttack(c);
+    } else if (c.slot === 'throw') {
+      if (this.mouseDown && !this.firedSincePress) {
+        this.throwKnife(c);
         this.firedSincePress = true;
       }
+      if (c.throwLeft <= 0 && t > c.nextThrow) this.setSlot('gun');
     }
     this.regen(c, dt);
 
@@ -1424,22 +1890,24 @@ export class Game {
     if (c.moving && c.onGround) c.walkPhase += dt * c.R.speed * 1.4;
     const bob = c.moving && c.onGround ? Math.sin(c.walkPhase) * 0.04 : 0;
     this.camera.position.set(c.pos.x, c.pos.y + EYE + bob, c.pos.z);
-    this.camera.rotation.set(c.pitch, c.yaw, 0);
-    const targetFov = this.zoom ? W.zoomFov : this.baseFov;
+    this.shake = Math.max(0, this.shake - dt * 2.5);
+    this.camera.rotation.set(c.pitch + rand(-1, 1) * this.shake * 0.04, c.yaw + rand(-1, 1) * this.shake * 0.04, 0);
+    const targetFov = zooming ? W.zoomFov : this.baseFov;
     this.camera.fov += (targetFov - this.camera.fov) * (1 - Math.exp(-18 * dt));
     this.camera.updateProjectionMatrix();
 
     // view model
     this.kick = Math.max(0, (this.kick || 0) - dt * 6);
-    const reloadT = t < c.reloadUntil ? Math.sin(((c.reloadUntil - t) / W.reload) * Math.PI) : 0;
+    const reloadT = t < c.reloadUntil ? Math.sin(((c.reloadUntil - t) / this.reloadOf(c)) * Math.PI) : 0;
     this.vm.position.set(
       this.vmBase.x + Math.cos(c.walkPhase * 0.5) * (c.moving ? 0.012 : 0),
       this.vmBase.y + bob * 0.5 - reloadT * 0.15,
       this.vmBase.z + this.kick * 0.08,
     );
     this.vm.rotation.x = this.kick * 0.15 - reloadT * 0.7;
-    const scoped = this.zoom && c.role === 'sniper' && this.camera.fov < 30;
-    this.vm.visible = !scoped;
+    const scoped = zooming && c.role === 'sniper' && this.camera.fov < 30;
+    this.vm.visible = !scoped && c.slot === 'gun';
+    this.animateHeldBlades(c, t, bob);
     this.hud.scope.hidden = !scoped;
     this.hud.crosshair.hidden = scoped;
     if (this.flashUntil && t > this.flashUntil) {
@@ -1447,7 +1915,7 @@ export class Game {
       this.muzzleLight.intensity = 0;
     }
     const cloaked = c.role === 'sniper' && t < c.abilityUntil;
-    for (const m of this.vmMats || []) {
+    for (const m of [...(this.vmMats || []), this.vmMeleeMat].filter(Boolean)) {
       m.transparent = cloaked;
       m.opacity = cloaked ? 0.35 : 1;
     }
@@ -1474,7 +1942,7 @@ export class Game {
     const W = b.R.weapon;
     if (b.reloading && t >= b.reloadUntil) {
       b.reloading = false;
-      b.mag = W.mag;
+      b.mag = this.magOf(b);
     }
     b.cloaked = b.role === 'sniper' && t < b.abilityUntil;
     b.fortified = b.role === 'heavy' && t < b.abilityUntil;
@@ -1534,7 +2002,18 @@ export class Game {
         ai.strafeAt = t + rand(0.8, 2.2);
       }
       fx = ai.strafe * 0.8;
-      if (t >= ai.reactAt && Math.abs(dy) < 0.12 && dist <= W.range) this.fire(b);
+      const M = MELEE[b.meleeId] || MELEE.knife;
+      if (dist < M.reach + 0.4) {
+        // Close enough to cut: pull the blade and swing.
+        b.slot = 'melee';
+        fz = dist > 1.2 ? -1 : 0;
+        fx *= 0.3;
+        if (t >= ai.reactAt && Math.abs(dy) < 0.6) this.meleeAttack(b);
+      } else {
+        b.slot = 'gun';
+        if (dist < 6 && b.role !== 'sniper') fz = -1; // rush in for the kill
+        if (t >= ai.reactAt && Math.abs(dy) < 0.12 && dist <= W.range) this.fire(b);
+      }
     } else {
       if (!ai.wp || b.pos.distanceTo(ai.wp) < 2) {
         if (ai.lastSeen && t - ai.lastSeenAt < 4) {
@@ -1554,14 +2033,15 @@ export class Game {
       b.yaw += Math.max(-4 * dt, Math.min(4 * dt, dy));
       b.pitch *= 0.9;
       fz = Math.abs(dy) < 1 ? -1 : -0.2;
-      if (b.mag < W.mag * 0.5 && !b.reloading) this.startReload(b);
+      b.slot = 'gun';
+      if (b.mag < this.magOf(b) * 0.5 && !b.reloading) this.startReload(b);
     }
 
     const speed = b.R.speed * 0.85;
     const sin = Math.sin(b.yaw), cos = Math.cos(b.yaw);
     const want = new THREE.Vector3((fx * cos + fz * sin) * speed, 0, (-fx * sin + fz * cos) * speed);
     b.hv.lerp(want, 1 - Math.exp(-10 * dt));
-    if (t < b.dashUntil) b.hv.copy(b.dashDir).multiplyScalar(26);
+    if (t < b.dashUntil) b.hv.copy(b.dashDir).multiplyScalar(b.dashSpeed || 26);
     const blocked = this.moveChar(b, b.hv.x * dt, b.hv.z * dt, dt);
     b.moving = b.hv.lengthSq() > 1;
     if (blocked && b.onGround && Math.random() < 0.08) b.vy = JUMP_V;
@@ -1612,6 +2092,19 @@ export class Game {
     c.legL.rotation.x = swing;
     c.legR.rotation.x = -swing;
     c.arms.rotation.x = c.pitch * 0.8;
+    const melee = c.slot === 'melee';
+    c.gunMesh.visible = !melee;
+    c.blade.visible = melee;
+    if (melee && c.bladeFor !== c.meleeId) {
+      const B = (MELEE[c.meleeId] || MELEE.knife).blade;
+      c.blade.scale.z = B.length;
+      c.blade.position.z = -0.45 - B.length / 2;
+      c.bladeMat.color.setHex(B.color);
+      c.bladeMat.emissive.setHex(B.glow ? B.color : 0x333333);
+      c.bladeFor = c.meleeId;
+    }
+    const sw = (t - c.swingAt) / 0.35;
+    c.arms.rotation.y = sw >= 0 && sw < 1 ? Math.sin(sw * Math.PI) * 1.1 - sw * 0.6 : 0;
     c.head.rotation.x = c.pitch * 0.5;
     const op = c.cloaked ? 0.1 : 1;
     for (const m of c.mats) m.opacity = op;
@@ -1627,12 +2120,13 @@ export class Game {
     this.net.relay({
       k: 'st', p: [r(c.pos.x), r(c.pos.y), r(c.pos.z)], yw: r(c.yaw), pt: r(c.pitch),
       hp: Math.round(c.hp), a: c.alive ? 1 : 0, m: c.moving ? 1 : 0, cl: c.cloaked ? 1 : 0, fo: c.fortified ? 1 : 0,
+      w: c.slot[0], mi: c.meleeId,
     });
     if (this.isHost) {
       const l = [];
       for (const b of this.chars.values()) {
         if (!b.isBot) continue;
-        l.push([b.id, r(b.pos.x), r(b.pos.y), r(b.pos.z), r(b.yaw), r(b.pitch), Math.round(b.hp), b.alive ? 1 : 0, b.moving ? 1 : 0, b.cloaked ? 1 : 0, b.fortified ? 1 : 0]);
+        l.push([b.id, r(b.pos.x), r(b.pos.y), r(b.pos.z), r(b.yaw), r(b.pitch), Math.round(b.hp), b.alive ? 1 : 0, b.moving ? 1 : 0, b.cloaked ? 1 : 0, b.fortified ? 1 : 0, b.slot[0], b.meleeId]);
       }
       if (l.length) this.net.relay({ k: 'bots', l });
     }
@@ -1665,11 +2159,13 @@ export class Game {
         c.moving = !!data.m;
         c.cloaked = !!data.cl;
         c.fortified = !!data.fo;
+        c.slot = SLOT_CODES[data.w] || 'gun';
+        if (MELEE[data.mi]) c.meleeId = data.mi;
         break;
       }
       case 'bots': {
         if (this.isHost) return;
-        for (const [id, x, y, z, yw, pt, hp, a, m, cl, fo] of data.l) {
+        for (const [id, x, y, z, yw, pt, hp, a, m, cl, fo, w, mi] of data.l) {
           const b = this.chars.get(id);
           if (!b) continue;
           b.netPos.set(x, y, z);
@@ -1688,6 +2184,8 @@ export class Game {
           b.moving = !!m;
           b.cloaked = !!cl;
           b.fortified = !!fo;
+          b.slot = SLOT_CODES[w] || 'gun';
+          if (MELEE[mi]) b.meleeId = mi;
         }
         break;
       }
@@ -1721,18 +2219,18 @@ export class Game {
         break;
       }
       case 'hit':
-        this.applyDamage(this.me, data.dmg, String(data.by), data.head);
+        this.applyDamage(this.me, data.dmg, String(data.by), data.head, data.kind);
         break;
       case 'hitBot': {
         if (!this.isHost) return;
         const b = this.chars.get(data.id);
         if (!b || !b.isBot) return;
         if (this.mode === 'tdm' && data.team === b.team) return;
-        this.applyDamage(b, data.dmg, String(data.by), data.head);
+        this.applyDamage(b, data.dmg, String(data.by), data.head, data.kind);
         break;
       }
       case 'died':
-        if (this.isHost) this.recordKill(String(data.by), String(data.victim), data.head);
+        if (this.isHost) this.recordKill(String(data.by), String(data.victim), data.head, data.kind);
         break;
       case 'kill':
         if (!this.isHost) this.onKill(data);
@@ -1746,6 +2244,20 @@ export class Game {
       case 'fx':
         if (data.type === 'heal') this.spawnHealRing(new THREE.Vector3(...data.p));
         break;
+      case 'swing': {
+        const c = this.chars.get(data.id);
+        if (c && !c.isLocal) {
+          c.swingAt = t;
+          c.slot = 'melee';
+          this.sfx.swoosh(Math.max(0, 1 - this.camera.position.distanceTo(c.pos) / 30));
+        }
+        break;
+      }
+      case 'proj': {
+        const c = this.chars.get(data.id);
+        if (c && !c.isLocal) this.spawnProjectile(data.type, c, new THREE.Vector3(...data.o), new THREE.Vector3(...data.v), false);
+        break;
+      }
     }
   }
 
@@ -1759,9 +2271,18 @@ export class Game {
     this.hud.hpFill.classList.toggle('low', hpPct < 0.35);
     this.hud.hpText.textContent = Math.ceil(Math.max(0, c.hp));
     const reloading = t < c.reloadUntil;
-    this.hud.ammo.textContent = reloading ? 'RELOADING' : `${c.mag} / ${W.mag}`;
-    this.hud.weapon.textContent = W.name;
-    this.hud.reload.style.width = reloading ? (1 - (c.reloadUntil - t) / W.reload) * 100 + '%' : '0%';
+    if (c.slot === 'melee') {
+      this.hud.ammo.textContent = 'MELEE';
+      this.hud.weapon.textContent = (MELEE[c.meleeId] || MELEE.knife).name;
+    } else if (c.slot === 'throw') {
+      this.hud.ammo.textContent = `${c.throwLeft} / ${THROWING.count}`;
+      this.hud.weapon.textContent = THROWING.name;
+    } else {
+      this.hud.ammo.textContent = reloading ? 'RELOADING' : `${c.mag} / ${this.magOf(c)}`;
+      this.hud.weapon.textContent = W.name;
+    }
+    this.hud.reload.style.width = reloading && c.slot === 'gun' ? (1 - (c.reloadUntil - t) / this.reloadOf(c)) * 100 + '%' : '0%';
+    if (this.wallet && this.hud.coins) this.hud.coins.textContent = this.wallet.coins.toLocaleString();
     const A = c.R.ability;
     this.hud.abilityName.textContent = A.name;
     const cd = Math.max(0, c.abilityReadyAt - t);
@@ -1938,6 +2459,7 @@ export class Game {
       this.updateCharVisual(c, dt);
     }
     this.updateEffects();
+    this.updateProjectiles(dt);
     for (const p of this.pads || []) p.ring.material.opacity = 0.45 + Math.sin(t * 2.5 + p.zone.index) * 0.2;
     if (this.snow) {
       const arr = this.snow.geometry.attributes.position.array;

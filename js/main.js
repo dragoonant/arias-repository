@@ -4,6 +4,7 @@ import { Net } from './net.js';
 import { Game } from './game.js';
 import { ROLES, ROLE_ORDER, roleStats } from './roles.js';
 import { MAPS, MAP_ORDER } from './maps.js';
+import { SHOP, COINS, newWallet } from './weapons.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -38,6 +39,17 @@ const state = {
   pendingInvite: null,
   lastResultsOnline: false,
 };
+
+// Coins, unlocks and supplies live in this browser and carry over between matches.
+state.wallet = Object.assign(newWallet(), load('wallet', {}));
+if (!state.wallet.owned || typeof state.wallet.owned !== 'object') state.wallet.owned = {};
+function saveWallet() {
+  save('wallet', state.wallet);
+  renderCoins();
+}
+function renderCoins() {
+  for (const el of document.querySelectorAll('.coins-total')) el.textContent = state.wallet.coins.toLocaleString();
+}
 
 const net = new Net();
 
@@ -491,6 +503,9 @@ function commonGameOpts() {
   return {
     container: $('game-root'),
     sensitivity: state.sens / 1000,
+    wallet: state.wallet,
+    onWalletChange: saveWallet,
+    onOpenShop: openShop,
   };
 }
 
@@ -543,6 +558,10 @@ net.on('end', (msg) => {
 });
 
 function endMatch(results, online) {
+  const earned = state.game ? state.game.coinsEarned : 0;
+  $('results-coins').innerHTML = earned > 0
+    ? `<span class="coin"></span>+${earned.toLocaleString()} coins earned · ${state.wallet.coins.toLocaleString()} total`
+    : '';
   if (state.game) {
     state.game.destroy();
     state.game = null;
@@ -599,7 +618,93 @@ $('resume-btn').addEventListener('click', () => {
   if (matchMedia('(pointer: coarse)').matches) $('pause-overlay').hidden = true;
 });
 
+// ---------------------------------------------------------------- armory (shop)
+function shopState(item) {
+  const w = state.wallet;
+  if (item.kind === 'supply') {
+    const have = w[item.id] | 0;
+    if (have >= item.max) return { label: `Full (${have}/${item.max})`, disabled: true, have };
+    return { label: `Buy · ${item.price}`, disabled: w.coins < item.price, buy: true, have };
+  }
+  const owned = item.price === 0 || !!w.owned[item.id];
+  if (item.kind === 'melee' && owned) {
+    return w.melee === item.id ? { label: 'Equipped', disabled: true, owned, equipped: true } : { label: 'Equip', equip: true, owned };
+  }
+  if (owned) return { label: 'Owned', disabled: true, owned };
+  if (item.requires && !w.owned[item.requires]) {
+    const req = SHOP.find((x) => x.id === item.requires);
+    return { label: `Needs ${req ? req.name : item.requires}`, disabled: true };
+  }
+  return { label: `Buy · ${item.price}`, disabled: w.coins < item.price, buy: true };
+}
+
+function renderShop() {
+  renderCoins();
+  const body = $('shop-body');
+  body.innerHTML = '';
+  for (const cat of ['Melee', 'Upgrades', 'Supplies']) {
+    const section = document.createElement('div');
+    section.className = 'shop-cat';
+    section.innerHTML = `<h3>${cat === 'Melee' ? 'Melee & throwing' : cat}</h3><div class="shop-grid"></div>`;
+    const grid = section.querySelector('.shop-grid');
+    for (const item of SHOP.filter((x) => x.cat === cat)) {
+      const st = shopState(item);
+      const card = document.createElement('div');
+      card.className = 'shop-item' + (st.equipped ? ' equipped' : st.owned ? ' owned' : '');
+      const short = st.buy && st.disabled ? `<span class="have">Need ${(item.price - state.wallet.coins).toLocaleString()} more coins</span>` : '';
+      const have = item.kind === 'supply' ? `<span class="have">You have ${st.have} of ${item.max}</span>` : '';
+      card.innerHTML = `<h4>${item.name}</h4><div class="shop-stat">${item.stat}</div><p>${item.desc}</p>${have}
+        <button class="btn ${st.buy ? 'btn-primary' : ''}" ${st.disabled ? 'disabled' : ''}>${st.buy ? '<span class="coin"></span>' : ''}${st.label}</button>${short}`;
+      card.querySelector('button').addEventListener('click', () => shopAction(item, st));
+      grid.appendChild(card);
+    }
+    body.appendChild(section);
+  }
+  $('coin-rules').textContent = `${COINS.kill} per elimination · +${COINS.headshot} headshot · +${COINS.melee} melee · +${COINS.backstab} backstab · +${COINS.throw} knife throw · +${COINS.grenade} grenade · streak bonus from your 3rd kill in a row. Easy bots pay half, hard bots pay 1.5x, and real players pay 1.5x.`;
+}
+
+function shopAction(item, st) {
+  const w = state.wallet;
+  let msg = '';
+  if (st.equip) {
+    w.melee = item.id;
+    msg = `${item.name} equipped.`;
+  } else if (st.buy && w.coins >= item.price) {
+    w.coins -= item.price;
+    if (item.kind === 'supply') w[item.id] = (w[item.id] | 0) + 1;
+    else w.owned[item.id] = true;
+    if (item.kind === 'melee') w.melee = item.id; // equip new blades right away
+    msg = `Bought ${item.name}.`;
+  } else return;
+  saveWallet();
+  if (state.game) state.game.applyLoadout();
+  $('shop-msg').textContent = msg;
+  renderShop();
+}
+
+function openShop() {
+  if (document.pointerLockElement) document.exitPointerLock();
+  $('shop-msg').textContent = state.game && state.online ? 'The match keeps going while you shop.' : '';
+  renderShop();
+  $('shop').hidden = false;
+}
+
+function closeShop() {
+  $('shop').hidden = true;
+  if (state.game) state.game.updateSlotHUD();
+}
+
+$('shop-close').addEventListener('click', closeShop);
+document.addEventListener('keydown', (e) => {
+  if (!$('shop').hidden && (e.code === 'Escape' || e.code === 'KeyB')) {
+    e.stopPropagation();
+    closeShop();
+  }
+}, true);
+for (const b of document.querySelectorAll('[data-open-shop]')) b.addEventListener('click', openShop);
+
 // ---------------------------------------------------------------- boot
+renderCoins();
 window.strikezone = state; // handy for debugging in the browser console
 renderFriends();
 show('home');

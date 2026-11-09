@@ -296,9 +296,10 @@ td small { color: var(--muted); font-size: 11px; letter-spacing: 0.08em; }
 #touch-look { position: absolute; right: 0; top: 0; bottom: 0; width: 60%; pointer-events: auto; touch-action: none; }
 #touch-stick { position: absolute; left: max(24px, env(safe-area-inset-left)); bottom: max(28px, env(safe-area-inset-bottom)); width: 130px; height: 130px; border-radius: 50%; background: rgba(255,255,255,0.08); border: 2px solid rgba(255,255,255,0.2); pointer-events: auto; touch-action: none; display: grid; place-items: center; }
 #touch-knob { width: 56px; height: 56px; border-radius: 50%; background: rgba(255,255,255,0.3); }
-.touch-btns { position: absolute; right: max(20px, env(safe-area-inset-right)); bottom: max(120px, calc(env(safe-area-inset-bottom) + 100px)); display: grid; grid-template-columns: repeat(2, 64px); gap: 12px; pointer-events: auto; }
-.touch-btns button { width: 64px; height: 64px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.3); background: rgba(10,14,24,0.5); font-family: var(--font-display); font-size: 11px; font-weight: 700; letter-spacing: 0.06em; touch-action: none; }
+.touch-btns { position: absolute; right: max(20px, env(safe-area-inset-right)); bottom: max(120px, calc(env(safe-area-inset-bottom) + 100px)); display: grid; grid-template-columns: repeat(3, 56px); gap: 10px; pointer-events: auto; }
+.touch-btns button { width: 56px; height: 56px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.3); background: rgba(10,14,24,0.5); font-family: var(--font-display); font-size: 11px; font-weight: 700; letter-spacing: 0.06em; touch-action: none; }
 #touch-fire { background: rgba(255,90,78,0.55); grid-column: span 2; width: 100%; border-radius: 32px; }
+.touch-btns button { font-size: 10px; }
 #touch-menu { position: absolute; left: max(16px, env(safe-area-inset-left)); top: calc(max(16px, env(safe-area-inset-top)) + 170px); pointer-events: auto; padding: 6px 12px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.3); background: rgba(10,14,24,0.6); font-family: var(--font-display); font-size: 12px; letter-spacing: 0.08em; }
 @media (pointer: coarse) {
   .hud-bl { left: max(170px, env(safe-area-inset-left)); width: min(240px, calc(100vw - 190px)); }
@@ -313,6 +314,40 @@ td small { color: var(--muted); font-size: 11px; letter-spacing: 0.08em; }
   .hud-br { top: calc(max(16px, env(safe-area-inset-top)) + 90px); }
   #killfeed { top: calc(max(16px, env(safe-area-inset-top)) + 170px); }
 }
+
+/* coins + shop */
+.coin { display: inline-block; width: 0.9em; height: 0.9em; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #ffe08a, #f0a81c 60%, #b8730a); box-shadow: inset 0 0 0 2px rgba(120,70,0,0.35); vertical-align: -0.1em; }
+.wallet-line { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.coin-count { font-family: var(--font-display); font-size: 22px; font-weight: 700; color: #ffd36a; display: flex; align-items: center; gap: 8px; font-variant-numeric: tabular-nums; }
+#shop { position: fixed; inset: 0; z-index: 40; overflow-y: auto; background: var(--bg); padding-block: max(20px, env(safe-area-inset-top)) max(28px, env(safe-area-inset-bottom)); padding-left: max(16px, env(safe-area-inset-left)); padding-right: max(16px, env(safe-area-inset-right)); }
+.shop-head { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; justify-content: space-between; }
+.shop-head h2 { font-size: clamp(28px, 5vw, 40px); text-transform: uppercase; }
+.shop-cat { display: grid; gap: 12px; }
+.shop-cat h3 { font-size: 18px; text-transform: uppercase; color: var(--muted); letter-spacing: 0.1em; }
+.shop-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; }
+.shop-item { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 16px; display: grid; gap: 8px; align-content: start; min-width: 0; }
+.shop-item.owned { border-color: rgba(67,209,138,0.5); }
+.shop-item.equipped { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.shop-item h4 { margin: 0; font-family: var(--font-display); font-size: 18px; text-transform: uppercase; }
+.shop-item .shop-stat { font-size: 13px; color: var(--accent); font-family: var(--font-display); letter-spacing: 0.03em; }
+.shop-item p { margin: 0; font-size: 14px; color: var(--muted); }
+.shop-item .btn { justify-self: start; display: inline-flex; align-items: center; gap: 6px; }
+.shop-item .have { font-size: 13px; color: var(--muted); }
+#shop-msg { min-height: 1.3em; color: var(--green); font-size: 14px; }
+
+/* weapon slots + coins HUD */
+#slots { position: absolute; left: 50%; bottom: max(14px, env(safe-area-inset-bottom)); transform: translateX(-50%); display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; max-width: min(640px, calc(100vw - 680px)); }
+@media (max-width: 1150px) { #slots { max-width: none; bottom: auto; top: calc(max(14px, env(safe-area-inset-top)) + 72px); } }
+.slot { display: flex; align-items: center; gap: 6px; background: rgba(10,14,24,0.6); border: 1px solid rgba(255,255,255,0.15); border-radius: 4px; padding: 4px 8px; font-size: 12px; letter-spacing: 0.04em; white-space: nowrap; }
+.slot kbd { font-family: var(--font-display); font-size: 10px; color: var(--accent); }
+.slot b { color: #ffd36a; font-weight: 600; }
+.slot.on { border-color: var(--accent); background: rgba(255,176,32,0.22); }
+.slot.dim { opacity: 0.45; }
+#coins-hud { display: flex; align-items: center; gap: 6px; font-size: 18px; font-weight: 700; color: #ffd36a; text-shadow: 0 1px 3px #000; font-variant-numeric: tabular-nums; position: relative; }
+#coin-popup { position: absolute; right: 0; bottom: 100%; font-size: 18px; font-weight: 700; color: #ffd36a; text-shadow: 0 1px 4px #000; opacity: 0; white-space: nowrap; }
+#coin-popup.show { animation: coinpop 1.4s ease-out; }
+@keyframes coinpop { 0% { opacity: 0; transform: translateY(10px); } 15% { opacity: 1; transform: translateY(0); } 70% { opacity: 1; } 100% { opacity: 0; transform: translateY(-14px); } }
+@media (pointer: coarse) { #slots { display: none; } }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
@@ -334,6 +369,10 @@ td small { color: var(--muted); font-size: 11px; letter-spacing: 0.08em; }
         <div class="field">
           <label class="label" for="name-input">Your callsign</label>
           <input class="input" id="name-input" maxlength="16" autocomplete="off" placeholder="Enter a name">
+        </div>
+        <div class="wallet-line">
+          <span class="coin-count"><span class="coin"></span><span class="coins-total">0</span> coins</span>
+          <button class="btn" data-open-shop>Armory · knives, katanas, upgrades</button>
         </div>
         <div class="play-buttons">
           <button class="btn btn-primary btn-big" id="btn-friends">Play with friends<small>Create a room or join one with a code</small></button>
@@ -376,6 +415,10 @@ td small { color: var(--muted); font-size: 11px; letter-spacing: 0.08em; }
           <kbd>Space</kbd><span>Jump</span>
           <kbd>R</kbd><span>Reload</span>
           <kbd>Q</kbd><span>Use your role's ability</span>
+          <kbd>1 2 3</kbd><span>Gun · melee (knife or katana) · throwing knives</span>
+          <kbd>V</kbd><span>Quick melee swing</span>
+          <kbd>G / H</kbd><span>Throw a grenade / use a med kit</span>
+          <kbd>B</kbd><span>Open the Armory shop</span>
           <kbd>Tab</kbd><span>Scoreboard</span>
           <kbd>Esc</kbd><span>Pause menu</span>
         </div>
@@ -414,6 +457,9 @@ td small { color: var(--muted); font-size: 11px; letter-spacing: 0.08em; }
       <h2 id="setup-title">Solo vs bots</h2>
       <span class="room-code" id="room-code" hidden></span>
       <button class="btn small-btn" id="copy-code" hidden>Copy code</button>
+      <span style="flex:1"></span>
+      <span class="coin-count"><span class="coin"></span><span class="coins-total">0</span></span>
+      <button class="btn" data-open-shop>Armory</button>
     </div>
 
     <div class="section">
@@ -499,6 +545,7 @@ td small { color: var(--muted); font-size: 11px; letter-spacing: 0.08em; }
       <span class="label" id="results-sub">Match over</span>
       <h2 id="results-winner">Winner</h2>
       <span class="hint" id="results-detail"></span>
+      <span class="coin-count" id="results-coins" style="justify-content:center;"></span>
     </div>
     <div class="panel table-wrap" id="results-table"></div>
     <div class="row" style="justify-content:center;">
@@ -528,7 +575,9 @@ td small { color: var(--muted); font-size: 11px; letter-spacing: 0.08em; }
       <div class="ability-bar"><div id="ability-fill"></div></div>
     </div>
   </div>
+  <div id="slots"></div>
   <div class="hud-br">
+    <div id="coins-hud"><span class="coin"></span><span id="coins-amount">0</span><span id="coin-popup"></span></div>
     <div class="hud-label" id="weapon-name">Weapon</div>
     <div id="ammo-text">30 / 30</div>
     <div class="reload-track"><div id="reload-bar"></div></div>
@@ -542,6 +591,7 @@ td small { color: var(--muted); font-size: 11px; letter-spacing: 0.08em; }
     <h2>Ready?</h2>
     <p class="hint" style="margin:0;">Click to lock your mouse and play. Press Esc any time to come back here. Hold Tab for the scoreboard.</p>
     <button class="btn btn-primary" id="resume-btn">Click to play</button>
+    <button class="btn" data-open-shop>Armory (B)</button>
     <button class="btn" id="leave-btn">Leave match</button>
   </div>
 </div>
@@ -554,9 +604,33 @@ td small { color: var(--muted); font-size: 11px; letter-spacing: 0.08em; }
     <button id="touch-reload">RELOAD</button>
     <button id="touch-zoom">ZOOM</button>
     <button id="touch-jump">JUMP</button>
+    <button id="touch-swap">SWAP</button>
+    <button id="touch-nade">NADE</button>
+    <button id="touch-med">MED</button>
     <button id="touch-fire">FIRE</button>
   </div>
 </div>
+
+<section id="shop" hidden aria-label="Armory">
+  <div class="wrap">
+    <div class="shop-head">
+      <div style="display:grid; gap:4px;">
+        <h2>Armory</h2>
+        <span class="hint">Earn coins by eliminating players and bots. Everything you buy is kept for future matches.</span>
+      </div>
+      <div class="row">
+        <span class="coin-count"><span class="coin"></span><span class="coins-total">0</span></span>
+        <button class="btn btn-primary" id="shop-close">Done</button>
+      </div>
+    </div>
+    <div id="shop-msg" role="status"></div>
+    <div id="shop-body" style="display:grid; gap:24px;"></div>
+    <div class="panel" style="display:grid; gap:6px;">
+      <span class="label">How to earn coins</span>
+      <span class="hint" id="coin-rules"></span>
+    </div>
+  </div>
+</section>
 
 <div id="invite-toast" hidden>
   <span id="invite-text"></span>
