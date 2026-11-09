@@ -21,6 +21,8 @@ To update the Pages site, copy the contents of `public/` to the `gh-pages` branc
   | Sniper | Longbow Rifle (right-click to scope) | **Cloak**: turn nearly invisible |
   | Medic | Pulse Pistol | **Heal Burst**: heals you and nearby teammates |
 
+- **Melee and throwables**: everyone carries a Combat Knife (press 2, or V for a quick swing). Hit someone from behind for a backstab. Unlock a **Katana** that lunges and hits everyone in front of you, then the **Dragon Katana**. **Throwing Knives** add a third slot, and **Frag Grenades** (G) bounce and explode.
+- **Coins and the Armory**: every elimination earns coins, with bonuses for headshots, melee kills, backstabs, knife throws, grenades and kill streaks. Spend them in the Armory (main menu, or press B mid-match) on blades, permanent upgrades (bigger mags, faster reloads, more damage, body armor, faster boots) and supplies (grenades, med kits). Coins and unlocks are saved in your browser.
 - **4 maps**: Rust Yard (shipping containers and a crane tower), Dune Outpost (desert fort ruins), Neon District (a city at night) and Frost Peak (snowy plateaus).
 - **2 modes**: Free-for-all, or Team battle (Red vs Blue).
 - **Spawn points**: every map has named spawn spots marked by glowing pads. In Team battle each team has its own three bases. When you're eliminated, pick where to respawn with the number keys (or tap on a phone), or leave it on *Auto* to land at the spot farthest from enemies.
@@ -61,6 +63,11 @@ The server is a single Node.js app (`server.js`), so you can host it on any Node
 | Space | Jump |
 | R | Reload |
 | Q | Use your role's ability |
+| 1 / 2 / 3 or mouse wheel | Gun / melee / throwing knives |
+| V | Quick melee swing |
+| G | Throw a grenade |
+| H | Use a med kit |
+| B | Open the Armory |
 | Tab | Scoreboard |
 | Esc | Pause menu (leave match) |
 
@@ -77,6 +84,7 @@ public/js/main.js    menu logic, friends list, lobby, match lifecycle
 public/js/game.js    3D engine: world, physics, bots, combat, networking
 public/js/roles.js   role and weapon stats
 public/js/maps.js    map layouts and lighting
+public/js/weapons.js melee weapons, throwables, Armory items and coin rewards
 public/js/net.js     WebSocket client
 public/vendor/       Three.js (bundled so the game also works offline)
 ```
