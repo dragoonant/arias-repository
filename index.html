@@ -1,0 +1,560 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>StrikeZone Arena</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap">
+<style>
+/* Layout: full-screen menus over a dark tactical backdrop; the 3D canvas sits underneath during play. */
+:root {
+  --bg: #0c111d;
+  --panel: #141b2b;
+  --panel-2: #1b2438;
+  --line: #2a3654;
+  --fg: #e9edf6;
+  --muted: #8f9ab3;
+  --accent: #ffb020;
+  --accent-ink: #1d1404;
+  --red: #ff5a4e;
+  --blue: #4ea3ff;
+  --green: #43d18a;
+  --font-display: "Chakra Petch", "Trebuchet MS", system-ui, sans-serif;
+  --font-body: "Barlow", "Segoe UI", system-ui, sans-serif;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font: 16px/1.45 var(--font-body);
+  overflow: hidden;
+  -webkit-tap-highlight-color: transparent;
+}
+[hidden] { display: none !important; }
+button { font: inherit; color: inherit; cursor: pointer; }
+input, select { font: inherit; color: var(--fg); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+#game-root { position: fixed; inset: 0; }
+.game-canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+
+/* ---------- menus ---------- */
+.screen {
+  position: fixed; inset: 0; overflow-y: auto; z-index: 20;
+  padding-block: max(24px, env(safe-area-inset-top)) max(32px, env(safe-area-inset-bottom));
+  padding-left: max(16px, env(safe-area-inset-left));
+  padding-right: max(16px, env(safe-area-inset-right));
+  background:
+    repeating-linear-gradient(135deg, rgba(255,255,255,0.018) 0 2px, transparent 2px 14px),
+    radial-gradient(ellipse at 15% 0%, rgba(255,176,32,0.12), transparent 55%),
+    radial-gradient(ellipse at 100% 100%, rgba(78,163,255,0.12), transparent 60%),
+    var(--bg);
+}
+.wrap { max-width: 1120px; margin: 0 auto; display: grid; gap: 24px; }
+h1, h2, h3 { font-family: var(--font-display); margin: 0; text-wrap: balance; letter-spacing: 0.02em; }
+.label {
+  font-family: var(--font-display); font-size: 12px; font-weight: 600; letter-spacing: 0.14em;
+  text-transform: uppercase; color: var(--muted);
+}
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 20px; min-width: 0; }
+
+.logo { display: grid; gap: 4px; }
+.logo h1 { font-size: clamp(40px, 8vw, 76px); line-height: 0.95; font-weight: 700; text-transform: uppercase; }
+.logo h1 span { color: var(--accent); }
+.logo p { margin: 0; color: var(--muted); max-width: 52ch; }
+
+.home-grid { display: grid; grid-template-columns: 1.3fr 1fr; gap: 24px; align-items: start; }
+@media (max-width: 820px) { .home-grid { grid-template-columns: 1fr; } }
+
+.field { display: grid; gap: 6px; }
+.input {
+  background: var(--panel-2); border: 1px solid var(--line); border-radius: 4px; padding: 10px 12px; width: 100%;
+}
+.input:focus { border-color: var(--accent); outline: none; }
+.row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+
+.btn {
+  border: 1px solid var(--line); background: var(--panel-2); border-radius: 4px; padding: 10px 16px;
+  font-family: var(--font-display); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; font-size: 14px;
+  transition: background .15s, border-color .15s, transform .1s;
+}
+.btn:hover { border-color: var(--muted); }
+.btn:active { transform: translateY(1px); }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.btn-primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.btn-primary:hover { background: #ffc24d; border-color: #ffc24d; }
+.btn-big { padding: 16px 22px; font-size: 18px; width: 100%; text-align: left; display: grid; gap: 2px; }
+.btn-big small { font-family: var(--font-body); text-transform: none; letter-spacing: 0; font-weight: 500; font-size: 14px; opacity: 0.8; }
+.btn-ghost { background: transparent; }
+.play-buttons { display: grid; gap: 12px; }
+
+.server-status { font-size: 14px; color: var(--muted); display: flex; gap: 8px; align-items: center; }
+.dot { width: 9px; height: 9px; border-radius: 50%; background: var(--muted); flex: none; }
+.dot.on { background: var(--green); box-shadow: 0 0 8px var(--green); }
+.dot.busy { background: var(--accent); }
+
+.friends { display: grid; gap: 14px; }
+.friend-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.friend {
+  display: flex; align-items: center; gap: 10px; padding: 8px 10px; background: var(--panel-2);
+  border-radius: 4px; min-width: 0;
+}
+.friend .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.friend .status { font-size: 13px; color: var(--muted); }
+.icon-btn { background: none; border: none; color: var(--muted); padding: 4px 8px; font-size: 18px; line-height: 1; }
+.icon-btn:hover { color: var(--fg); }
+.small-btn { padding: 5px 10px; font-size: 12px; }
+.empty { color: var(--muted); font-size: 14px; margin: 0; }
+
+.settings-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; }
+input[type=range] { width: 100%; accent-color: var(--accent); }
+
+.controls-help { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; font-size: 14px; color: var(--muted); }
+.controls-help kbd {
+  font-family: var(--font-display); font-size: 12px; color: var(--fg); background: var(--panel-2);
+  border: 1px solid var(--line); border-radius: 3px; padding: 1px 6px; justify-self: start;
+}
+
+/* setup / lobby */
+.topbar { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.topbar h2 { font-size: clamp(24px, 4vw, 34px); text-transform: uppercase; }
+.room-code {
+  font-family: var(--font-display); font-size: 22px; letter-spacing: 0.2em; background: var(--panel-2);
+  border: 1px dashed var(--accent); color: var(--accent); padding: 4px 12px; border-radius: 4px;
+}
+.section { display: grid; gap: 12px; }
+.section-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.section-head h3 { font-size: 20px; text-transform: uppercase; }
+.hint { color: var(--muted); font-size: 14px; }
+
+.role-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 980px) { .role-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 600px) { .role-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.role-card, .map-card {
+  text-align: left; background: var(--panel); border: 2px solid var(--line); border-radius: 6px; padding: 14px;
+  display: grid; gap: 10px; align-content: start; min-width: 0; transition: border-color .15s, transform .15s;
+}
+.role-card:hover:not(:disabled), .map-card:hover:not(:disabled) { border-color: var(--muted); transform: translateY(-2px); }
+.role-card.selected, .map-card.selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent), 0 8px 30px rgba(255,176,32,0.15); }
+.map-card:disabled { cursor: default; opacity: 0.6; }
+.map-card.selected:disabled { opacity: 1; }
+.role-head { display: flex; gap: 10px; align-items: center; }
+.role-glyph {
+  width: 38px; height: 38px; border-radius: 4px; display: grid; place-items: center; flex: none;
+  font-family: var(--font-display); font-weight: 700; font-size: 20px; color: #0c111d;
+}
+.role-card h4, .map-card h4 { margin: 0; font-family: var(--font-display); font-size: 18px; text-transform: uppercase; }
+.role-card .tag { font-size: 13px; color: var(--muted); }
+.stats { display: grid; gap: 4px; }
+.stat { display: grid; grid-template-columns: 58px 1fr; gap: 8px; align-items: center; font-size: 12px; color: var(--muted); }
+.bar { height: 5px; background: var(--panel-2); border-radius: 3px; overflow: hidden; }
+.bar i { display: block; height: 100%; background: var(--fg); border-radius: 3px; }
+.ability { font-size: 13px; color: var(--muted); border-top: 1px solid var(--line); padding-top: 8px; }
+.ability b { color: var(--fg); font-family: var(--font-display); text-transform: uppercase; letter-spacing: 0.04em; }
+.weapon-line { font-size: 13px; }
+
+.map-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 900px) { .map-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.map-card { padding: 0; overflow: hidden; }
+.map-card svg { width: 100%; height: auto; display: block; aspect-ratio: 16 / 8; max-width: 100%; }
+.map-card .map-body { padding: 0 14px 14px; display: grid; gap: 6px; }
+.map-card p { margin: 0; font-size: 13px; color: var(--muted); }
+
+.rules { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 16px; }
+.seg { display: flex; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; }
+.seg button { flex: 1; padding: 9px 8px; background: var(--panel-2); border: none; font-family: var(--font-display); font-weight: 600; font-size: 13px; letter-spacing: 0.05em; text-transform: uppercase; }
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button.on { background: var(--accent); color: var(--accent-ink); }
+.seg button:disabled { cursor: not-allowed; }
+.range-val { font-family: var(--font-display); color: var(--accent); }
+
+.lobby-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: start; }
+@media (max-width: 820px) { .lobby-grid { grid-template-columns: 1fr; } }
+.player-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.player-list li { display: flex; gap: 10px; align-items: center; padding: 8px 10px; background: var(--panel-2); border-radius: 4px; border-left: 3px solid var(--line); min-width: 0; }
+.player-list li.team-red { border-left-color: var(--red); }
+.player-list li.team-blue { border-left-color: var(--blue); }
+.player-list .pname { flex: 1; font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.badge { font-family: var(--font-display); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; padding: 2px 6px; border-radius: 3px; background: var(--line); color: var(--fg); }
+.badge.host { background: var(--accent); color: var(--accent-ink); }
+.chat-log { height: 130px; overflow-y: auto; background: var(--panel-2); border-radius: 4px; padding: 8px 10px; font-size: 14px; display: grid; align-content: start; gap: 2px; }
+.chat-log b { color: var(--accent); font-weight: 600; }
+
+.start-bar { position: sticky; bottom: 0; display: flex; justify-content: flex-end; gap: 12px; align-items: center; padding-block: 12px; background: linear-gradient(transparent, var(--bg) 40%); flex-wrap: wrap; }
+.start-bar .btn-primary { font-size: 18px; padding: 14px 34px; }
+
+.error-msg { color: var(--red); font-size: 14px; min-height: 1.2em; margin: 0; }
+
+/* results */
+.results-hero { text-align: center; display: grid; gap: 6px; padding-block: 20px; }
+.results-hero .label { color: var(--accent); }
+.results-hero h2 { font-size: clamp(36px, 7vw, 64px); text-transform: uppercase; }
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+th, td { padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--line); }
+th { font-family: var(--font-display); font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+td:nth-child(n+3), th:nth-child(n+3) { text-align: right; }
+tr.me td { color: var(--accent); font-weight: 600; }
+td small { color: var(--muted); font-size: 11px; letter-spacing: 0.08em; }
+
+/* toast for invites (menus) */
+#invite-toast {
+  position: fixed; left: 50%; transform: translateX(-50%); bottom: max(20px, env(safe-area-inset-bottom)); z-index: 60;
+  background: var(--panel); border: 1px solid var(--accent); border-radius: 6px; padding: 12px 16px;
+  display: flex; gap: 12px; align-items: center; flex-wrap: wrap; max-width: calc(100% - 32px);
+  box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+}
+
+/* ---------- HUD ---------- */
+#hud { position: fixed; inset: 0; pointer-events: none; z-index: 10; font-family: var(--font-display); }
+#crosshair { position: absolute; left: 50%; top: 50%; width: 22px; height: 22px; transform: translate(-50%, -50%); }
+#crosshair::before, #crosshair::after { content: ""; position: absolute; background: rgba(255,255,255,0.9); box-shadow: 0 0 2px #000; }
+#crosshair::before { left: 10px; top: 0; width: 2px; height: 22px; clip-path: polygon(0 0, 100% 0, 100% 35%, 0 35%, 0 65%, 100% 65%, 100% 100%, 0 100%); }
+#crosshair::after { top: 10px; left: 0; height: 2px; width: 22px; clip-path: polygon(0 0, 35% 0, 35% 100%, 0 100%, 0 0, 65% 0, 100% 0, 100% 100%, 65% 100%); }
+#hitmarker { position: absolute; left: 50%; top: 50%; width: 28px; height: 28px; transform: translate(-50%, -50%) rotate(45deg); opacity: 0; }
+#hitmarker::before, #hitmarker::after { content: ""; position: absolute; background: #fff; }
+#hitmarker::before { left: 13px; top: 0; width: 2px; height: 28px; clip-path: polygon(0 0, 100% 0, 100% 30%, 0 30%, 0 70%, 100% 70%, 100% 100%, 0 100%); }
+#hitmarker::after { top: 13px; left: 0; height: 2px; width: 28px; clip-path: polygon(0 0, 30% 0, 30% 100%, 0 100%, 0 0, 70% 0, 100% 0, 100% 100%, 70% 100%); }
+#hitmarker.show { animation: hit .25s ease-out; }
+#hitmarker.head::before, #hitmarker.head::after { background: var(--accent); }
+#hitmarker.kill::before, #hitmarker.kill::after { background: var(--red); }
+@keyframes hit { from { opacity: 1; transform: translate(-50%, -50%) rotate(45deg) scale(1.3); } to { opacity: 0; transform: translate(-50%, -50%) rotate(45deg) scale(1); } }
+
+.hud-bl { position: absolute; left: max(20px, env(safe-area-inset-left)); bottom: max(20px, env(safe-area-inset-bottom)); display: grid; gap: 8px; width: min(300px, 40vw); }
+.hud-br { position: absolute; right: max(20px, env(safe-area-inset-right)); bottom: max(20px, env(safe-area-inset-bottom)); display: grid; gap: 8px; justify-items: end; text-align: right; }
+.hp-row { display: flex; align-items: baseline; gap: 10px; }
+#hp-text { font-size: 40px; font-weight: 700; line-height: 1; text-shadow: 0 2px 6px rgba(0,0,0,0.6); min-width: 2.4ch; font-variant-numeric: tabular-nums; }
+.hud-label { font-size: 12px; letter-spacing: 0.14em; color: rgba(255,255,255,0.75); text-transform: uppercase; text-shadow: 0 1px 3px #000; }
+.hp-bar { height: 10px; background: rgba(0,0,0,0.45); border: 1px solid rgba(255,255,255,0.25); border-radius: 2px; overflow: hidden; }
+#hp-fill { height: 100%; background: var(--green); transition: width .15s; }
+#hp-fill.low { background: var(--red); }
+.ability-box { display: grid; gap: 4px; }
+.ability-bar { height: 6px; background: rgba(0,0,0,0.45); border-radius: 2px; overflow: hidden; }
+#ability-fill { height: 100%; background: rgba(255,255,255,0.55); }
+.ability-bar.ready #ability-fill { background: var(--accent); }
+#ability-state { color: var(--accent); }
+#status-effects { font-size: 13px; color: var(--accent); letter-spacing: 0.1em; min-height: 1em; text-shadow: 0 1px 3px #000; }
+#ammo-text { font-size: 34px; font-weight: 700; line-height: 1; text-shadow: 0 2px 6px rgba(0,0,0,0.6); font-variant-numeric: tabular-nums; }
+.reload-track { width: 160px; height: 4px; background: rgba(0,0,0,0.4); }
+#reload-bar { height: 100%; background: var(--accent); width: 0; }
+
+.hud-top { position: absolute; top: max(14px, env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); display: grid; justify-items: center; gap: 2px; text-shadow: 0 1px 4px #000; }
+#timer { font-size: 28px; font-weight: 700; font-variant-numeric: tabular-nums; }
+#score-line { font-size: 15px; letter-spacing: 0.04em; white-space: nowrap; }
+#score-line .mine { color: var(--accent); font-size: 20px; }
+#score-line .team-red { color: var(--red); font-weight: 700; }
+#score-line .team-blue { color: var(--blue); font-weight: 700; }
+#score-line .limit, #score-line .vs { color: rgba(255,255,255,0.6); font-size: 13px; }
+
+#minimap { position: absolute; left: max(16px, env(safe-area-inset-left)); top: max(16px, env(safe-area-inset-top)); width: 160px; height: 160px; border: 1px solid rgba(255,255,255,0.2); border-radius: 4px; }
+#killfeed { position: absolute; right: max(16px, env(safe-area-inset-right)); top: max(16px, env(safe-area-inset-top)); display: grid; gap: 4px; justify-items: end; font-size: 14px; }
+.kf-row { background: rgba(10,14,24,0.7); padding: 4px 10px; border-radius: 3px; display: flex; gap: 8px; animation: kf .2s ease-out; }
+.kf-icon { color: rgba(255,255,255,0.6); }
+.kf-me { color: var(--accent); font-weight: 700; }
+.kf-red { color: #ff8a80; }
+.kf-blue { color: #8ac4ff; }
+@keyframes kf { from { transform: translateX(20px); opacity: 0; } }
+#kill-banner { position: absolute; left: 50%; top: 62%; transform: translateX(-50%); font-size: 20px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #fff; text-shadow: 0 2px 8px #000; opacity: 0; white-space: nowrap; }
+#kill-banner.show { animation: banner 1.8s ease-out; }
+@keyframes banner { 0% { opacity: 0; transform: translate(-50%, 10px); } 10%, 75% { opacity: 1; transform: translate(-50%, 0); } 100% { opacity: 0; } }
+#toast { position: absolute; left: 50%; top: 22%; transform: translateX(-50%); background: rgba(10,14,24,0.8); border: 1px solid rgba(255,255,255,0.15); padding: 8px 16px; border-radius: 4px; font-size: 16px; opacity: 0; transition: opacity .25s; white-space: nowrap; max-width: calc(100% - 32px); overflow: hidden; text-overflow: ellipsis; }
+#toast.show { opacity: 1; }
+#damage-vignette { position: absolute; inset: 0; background: radial-gradient(ellipse at center, transparent 45%, rgba(220,20,20,0.75) 100%); opacity: 0; }
+#scope-overlay { position: absolute; inset: 0; background: radial-gradient(circle at center, transparent 0 min(32vh, 32vw), #000 calc(min(32vh, 32vw) + 2px)); }
+#scope-overlay::before, #scope-overlay::after { content: ""; position: absolute; background: rgba(0,0,0,0.85); }
+#scope-overlay::before { left: 0; right: 0; top: 50%; height: 1px; }
+#scope-overlay::after { top: 0; bottom: 0; left: 50%; width: 1px; }
+#death-screen { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; gap: 8px; background: rgba(60,0,0,0.35); }
+#death-text { font-size: clamp(26px, 5vw, 44px); font-weight: 700; text-transform: uppercase; text-shadow: 0 2px 10px #000; }
+#death-timer { color: rgba(255,255,255,0.8); }
+#scoreboard { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(560px, calc(100% - 32px)); max-height: 80vh; overflow-y: auto; background: rgba(12,17,29,0.92); border: 1px solid var(--line); border-radius: 6px; padding: 18px; font-family: var(--font-body); }
+#scoreboard table { table-layout: fixed; }
+#scoreboard th:first-child, #scoreboard td:first-child { width: 46%; }
+#scoreboard h3 { margin-bottom: 10px; font-size: 18px; text-transform: uppercase; }
+.sb-team { font-family: var(--font-display); font-weight: 700; margin-top: 12px; letter-spacing: 0.1em; }
+.sb-red { color: var(--red); }
+.sb-blue { color: var(--blue); }
+
+#pause-overlay { position: fixed; inset: 0; z-index: 15; display: grid; place-content: center; background: rgba(8,11,19,0.72); padding-left: max(16px, env(safe-area-inset-left)); padding-right: max(16px, env(safe-area-inset-right)); }
+.pause-card { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 26px; display: grid; gap: 16px; width: min(440px, 100%); }
+.pause-card h2 { text-transform: uppercase; font-size: 28px; }
+
+/* touch */
+#touch-controls { position: fixed; inset: 0; z-index: 12; pointer-events: none; }
+#touch-look { position: absolute; right: 0; top: 0; bottom: 0; width: 60%; pointer-events: auto; touch-action: none; }
+#touch-stick { position: absolute; left: max(24px, env(safe-area-inset-left)); bottom: max(28px, env(safe-area-inset-bottom)); width: 130px; height: 130px; border-radius: 50%; background: rgba(255,255,255,0.08); border: 2px solid rgba(255,255,255,0.2); pointer-events: auto; touch-action: none; display: grid; place-items: center; }
+#touch-knob { width: 56px; height: 56px; border-radius: 50%; background: rgba(255,255,255,0.3); }
+.touch-btns { position: absolute; right: max(20px, env(safe-area-inset-right)); bottom: max(120px, calc(env(safe-area-inset-bottom) + 100px)); display: grid; grid-template-columns: repeat(2, 64px); gap: 12px; pointer-events: auto; }
+.touch-btns button { width: 64px; height: 64px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.3); background: rgba(10,14,24,0.5); font-family: var(--font-display); font-size: 11px; font-weight: 700; letter-spacing: 0.06em; touch-action: none; }
+#touch-fire { background: rgba(255,90,78,0.55); grid-column: span 2; width: 100%; border-radius: 32px; }
+#touch-menu { position: absolute; left: max(16px, env(safe-area-inset-left)); top: calc(max(16px, env(safe-area-inset-top)) + 170px); pointer-events: auto; padding: 6px 12px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.3); background: rgba(10,14,24,0.6); font-family: var(--font-display); font-size: 12px; letter-spacing: 0.08em; }
+@media (pointer: coarse) {
+  .hud-bl { left: max(170px, env(safe-area-inset-left)); width: min(240px, calc(100vw - 190px)); }
+  .hud-br { bottom: auto; top: calc(max(16px, env(safe-area-inset-top)) + 70px); }
+  #hp-text { font-size: 30px; }
+  #ammo-text { font-size: 26px; }
+}
+@media (max-width: 600px) {
+  #minimap { width: 110px; height: 110px; }
+  #touch-menu { top: calc(max(16px, env(safe-area-inset-top)) + 120px); }
+  .hud-top { left: auto; right: max(16px, env(safe-area-inset-right)); transform: none; justify-items: end; }
+  .hud-br { top: calc(max(16px, env(safe-area-inset-top)) + 90px); }
+  #killfeed { top: calc(max(16px, env(safe-area-inset-top)) + 170px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
+</style>
+</head>
+<body>
+<div id="game-root"></div>
+
+<!-- ============ HOME ============ -->
+<section class="screen" id="screen-home">
+  <div class="wrap">
+    <header class="logo">
+      <h1>Strike<span>Zone</span><br>Arena</h1>
+      <p>A 3D arena shooter for you and your friends. Pick a role, pick a map, and fight it out online or against bots.</p>
+    </header>
+    <div class="home-grid">
+      <div class="panel" style="display:grid; gap:20px;">
+        <div class="field">
+          <label class="label" for="name-input">Your callsign</label>
+          <input class="input" id="name-input" maxlength="16" autocomplete="off" placeholder="Enter a name">
+        </div>
+        <div class="play-buttons">
+          <button class="btn btn-primary btn-big" id="btn-friends">Play with friends<small>Create a room or join one with a code</small></button>
+          <button class="btn btn-big" id="btn-solo">Play vs bots<small>Practice offline against AI opponents</small></button>
+        </div>
+        <div class="server-status"><span class="dot" id="server-dot"></span><span id="server-text">Checking for game server…</span></div>
+        <p class="error-msg" id="home-error"></p>
+      </div>
+
+      <div class="panel friends">
+        <div class="section-head"><h3>Friends</h3><span class="hint" id="friends-count"></span></div>
+        <form class="row" id="add-friend-form" autocomplete="off">
+          <input class="input" id="friend-input" maxlength="16" placeholder="Friend's callsign" style="flex:1; min-width:0;">
+          <button class="btn" type="submit">Add</button>
+        </form>
+        <ul class="friend-list" id="friend-list"></ul>
+        <p class="hint">Friends show as online when they open the game on the same server. Invite them from your room.</p>
+      </div>
+    </div>
+
+    <div class="home-grid">
+      <div class="panel" style="display:grid; gap:14px;">
+        <h3 style="text-transform:uppercase; font-size:18px;">Settings</h3>
+        <div class="settings-grid">
+          <div class="field">
+            <label class="label" for="sens-input">Mouse sensitivity <span class="range-val" id="sens-val"></span></label>
+            <input type="range" id="sens-input" min="0.5" max="4" step="0.1">
+          </div>
+          <div class="field">
+            <label class="label" for="vol-input">Volume <span class="range-val" id="vol-val"></span></label>
+            <input type="range" id="vol-input" min="0" max="1" step="0.05">
+          </div>
+        </div>
+      </div>
+      <div class="panel" style="display:grid; gap:12px;">
+        <h3 style="text-transform:uppercase; font-size:18px;">Controls</h3>
+        <div class="controls-help">
+          <kbd>W A S D</kbd><span>Move (hold Shift to sprint)</span>
+          <kbd>Mouse</kbd><span>Aim · left click to shoot · right click to zoom</span>
+          <kbd>Space</kbd><span>Jump</span>
+          <kbd>R</kbd><span>Reload</span>
+          <kbd>Q</kbd><span>Use your role's ability</span>
+          <kbd>Tab</kbd><span>Scoreboard</span>
+          <kbd>Esc</kbd><span>Pause menu</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ ONLINE ENTRY ============ -->
+<section class="screen" id="screen-online" hidden>
+  <div class="wrap" style="max-width:720px;">
+    <div class="topbar"><button class="btn btn-ghost" data-back="home">← Back</button><h2>Play with friends</h2></div>
+    <div class="panel" style="display:grid; gap:18px;">
+      <div class="section">
+        <h3 style="text-transform:uppercase; font-size:18px;">Host a room</h3>
+        <p class="hint" style="margin:0;">You choose the map and rules. Share the room code or invite friends from your list.</p>
+        <button class="btn btn-primary" id="btn-create">Create room</button>
+      </div>
+      <div class="section" style="border-top:1px solid var(--line); padding-top:18px;">
+        <h3 style="text-transform:uppercase; font-size:18px;">Join a room</h3>
+        <form class="row" id="join-form" autocomplete="off">
+          <input class="input" id="code-input" maxlength="5" placeholder="Room code, e.g. K7PQ2" style="flex:1; min-width:0; text-transform:uppercase; letter-spacing:0.15em;">
+          <button class="btn" type="submit">Join</button>
+        </form>
+      </div>
+      <p class="error-msg" id="online-error"></p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ SETUP / LOBBY ============ -->
+<section class="screen" id="screen-setup" hidden>
+  <div class="wrap">
+    <div class="topbar">
+      <button class="btn btn-ghost" id="setup-back">← Back</button>
+      <h2 id="setup-title">Solo vs bots</h2>
+      <span class="room-code" id="room-code" hidden></span>
+      <button class="btn small-btn" id="copy-code" hidden>Copy code</button>
+    </div>
+
+    <div class="section">
+      <div class="section-head"><h3>Choose your role</h3><span class="hint">Each role has its own weapon and ability</span></div>
+      <div class="role-grid" id="role-grid"></div>
+    </div>
+
+    <div class="section">
+      <div class="section-head"><h3>Choose the map</h3><span class="hint" id="map-hint"></span></div>
+      <div class="map-grid" id="map-grid"></div>
+    </div>
+
+    <div class="section">
+      <div class="section-head"><h3>Match rules</h3></div>
+      <div class="panel rules" id="rules">
+        <div class="field">
+          <span class="label">Mode</span>
+          <div class="seg" id="mode-seg">
+            <button data-mode="ffa">Free-for-all</button>
+            <button data-mode="tdm">Team battle</button>
+          </div>
+        </div>
+        <div class="field">
+          <span class="label">Bot difficulty</span>
+          <div class="seg" id="diff-seg">
+            <button data-diff="easy">Easy</button>
+            <button data-diff="normal">Normal</button>
+            <button data-diff="hard">Hard</button>
+          </div>
+        </div>
+        <div class="field">
+          <label class="label" for="bots-input">Bots <span class="range-val" id="bots-val"></span></label>
+          <input type="range" id="bots-input" min="0" max="10" step="1">
+        </div>
+        <div class="field">
+          <label class="label" for="kills-input">Kills to win <span class="range-val" id="kills-val"></span></label>
+          <input type="range" id="kills-input" min="5" max="50" step="5">
+        </div>
+        <div class="field">
+          <label class="label" for="time-input">Time limit <span class="range-val" id="time-val"></span></label>
+          <input type="range" id="time-input" min="2" max="20" step="1">
+        </div>
+      </div>
+    </div>
+
+    <div class="lobby-grid" id="lobby-extra" hidden>
+      <div class="panel section">
+        <div class="section-head"><h3>Players</h3><span class="hint" id="player-count"></span></div>
+        <ul class="player-list" id="player-list"></ul>
+        <div class="field" id="team-pick" hidden>
+          <span class="label">Your team</span>
+          <div class="seg" id="team-seg">
+            <button data-team="red">Red</button>
+            <button data-team="blue">Blue</button>
+          </div>
+        </div>
+      </div>
+      <div class="panel section">
+        <div class="section-head"><h3>Invite friends</h3></div>
+        <ul class="friend-list" id="invite-list"></ul>
+        <div class="section">
+          <span class="label">Room chat</span>
+          <div class="chat-log" id="chat-log"></div>
+          <form class="row" id="chat-form" autocomplete="off">
+            <input class="input" id="chat-input" maxlength="120" placeholder="Say something" style="flex:1; min-width:0;">
+            <button class="btn" type="submit">Send</button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="start-bar">
+      <span class="hint" id="start-hint"></span>
+      <button class="btn btn-primary" id="btn-start">Start match</button>
+    </div>
+  </div>
+</section>
+
+<!-- ============ RESULTS ============ -->
+<section class="screen" id="screen-results" hidden>
+  <div class="wrap" style="max-width:760px;">
+    <div class="results-hero">
+      <span class="label" id="results-sub">Match over</span>
+      <h2 id="results-winner">Winner</h2>
+      <span class="hint" id="results-detail"></span>
+    </div>
+    <div class="panel table-wrap" id="results-table"></div>
+    <div class="row" style="justify-content:center;">
+      <button class="btn btn-primary" id="btn-again">Play again</button>
+      <button class="btn" id="btn-menu">Main menu</button>
+    </div>
+  </div>
+</section>
+
+<!-- ============ HUD ============ -->
+<div id="hud" hidden>
+  <canvas id="minimap" width="160" height="160"></canvas>
+  <div class="hud-top"><div id="timer">--:--</div><div id="score-line"></div></div>
+  <div id="killfeed"></div>
+  <div id="crosshair"></div>
+  <div id="hitmarker"></div>
+  <div id="kill-banner"></div>
+  <div id="toast"></div>
+  <div id="damage-vignette"></div>
+  <div id="scope-overlay" hidden></div>
+  <div class="hud-bl">
+    <div id="status-effects"></div>
+    <div class="hp-row"><span id="hp-text">100</span><span class="hud-label">Health</span></div>
+    <div class="hp-bar"><div id="hp-fill"></div></div>
+    <div class="ability-box">
+      <div class="hud-label"><span id="ability-name">Ability</span> · <span id="ability-state">READY</span></div>
+      <div class="ability-bar"><div id="ability-fill"></div></div>
+    </div>
+  </div>
+  <div class="hud-br">
+    <div class="hud-label" id="weapon-name">Weapon</div>
+    <div id="ammo-text">30 / 30</div>
+    <div class="reload-track"><div id="reload-bar"></div></div>
+  </div>
+  <div id="death-screen" hidden><div id="death-text">Eliminated</div><div id="death-timer"></div></div>
+  <div id="scoreboard" hidden></div>
+</div>
+
+<div id="pause-overlay" hidden>
+  <div class="pause-card">
+    <h2>Ready?</h2>
+    <p class="hint" style="margin:0;">Click to lock your mouse and play. Press Esc any time to come back here. Hold Tab for the scoreboard.</p>
+    <button class="btn btn-primary" id="resume-btn">Click to play</button>
+    <button class="btn" id="leave-btn">Leave match</button>
+  </div>
+</div>
+
+<div id="touch-controls" hidden>
+  <div id="touch-look"></div>
+  <div id="touch-stick"><div id="touch-knob"></div></div>
+  <div class="touch-btns">
+    <button id="touch-ability">ABILITY</button>
+    <button id="touch-reload">RELOAD</button>
+    <button id="touch-zoom">ZOOM</button>
+    <button id="touch-jump">JUMP</button>
+    <button id="touch-fire">FIRE</button>
+  </div>
+</div>
+
+<div id="invite-toast" hidden>
+  <span id="invite-text"></span>
+  <button class="btn btn-primary small-btn" id="invite-join">Join</button>
+  <button class="btn small-btn" id="invite-dismiss">Dismiss</button>
+</div>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
