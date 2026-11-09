@@ -23,6 +23,7 @@ To update the Pages site, copy the contents of `public/` to the `gh-pages` branc
 
 - **4 maps**: Rust Yard (shipping containers and a crane tower), Dune Outpost (desert fort ruins), Neon District (a city at night) and Frost Peak (snowy plateaus).
 - **2 modes**: Free-for-all, or Team battle (Red vs Blue).
+- **Spawn points**: every map has named spawn spots marked by glowing pads. In Team battle each team has its own three bases. When you're eliminated, pick where to respawn with the number keys (or tap on a phone), or leave it on *Auto* to land at the spot farthest from enemies.
 - **Bots** in 3 difficulty levels fill out the match. Bots play the same roles you do.
 - **Friends**: add friends by callsign, see when they're online, invite them to your room, or share a 5-letter room code. The room also has a chat.
 - **Phones and tablets** get on-screen touch controls.

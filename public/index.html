@@ -270,6 +270,15 @@ td small { color: var(--muted); font-size: 11px; letter-spacing: 0.08em; }
 #death-screen { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; gap: 8px; background: rgba(60,0,0,0.35); }
 #death-text { font-size: clamp(26px, 5vw, 44px); font-weight: 700; text-transform: uppercase; text-shadow: 0 2px 10px #000; }
 #death-timer { color: rgba(255,255,255,0.8); }
+#spawn-picker { pointer-events: auto; display: grid; gap: 10px; justify-items: center; margin-top: 14px; padding-left: max(16px, env(safe-area-inset-left)); padding-right: max(16px, env(safe-area-inset-right)); }
+.sp-title { font-size: 13px; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(255,255,255,0.8); }
+.sp-list { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; max-width: 760px; }
+.sp-btn { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: rgba(12,17,29,0.85); border: 1px solid rgba(255,255,255,0.25); border-left: 3px solid var(--accent); border-radius: 4px; font-family: var(--font-display); font-size: 14px; font-weight: 600; }
+.sp-btn.sp-red { border-left-color: var(--red); }
+.sp-btn.sp-blue { border-left-color: var(--blue); }
+.sp-btn.on { background: rgba(255,176,32,0.22); border-color: var(--accent); }
+.sp-btn kbd { font-family: var(--font-display); font-size: 11px; color: var(--accent); border: 1px solid currentColor; border-radius: 3px; padding: 0 5px; }
+.sp-hint { font-size: 13px; color: rgba(255,255,255,0.65); }
 #scoreboard { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(560px, calc(100% - 32px)); max-height: 80vh; overflow-y: auto; background: rgba(12,17,29,0.92); border: 1px solid var(--line); border-radius: 6px; padding: 18px; font-family: var(--font-body); }
 #scoreboard table { table-layout: fixed; }
 #scoreboard th:first-child, #scoreboard td:first-child { width: 46%; }
@@ -524,7 +533,7 @@ td small { color: var(--muted); font-size: 11px; letter-spacing: 0.08em; }
     <div id="ammo-text">30 / 30</div>
     <div class="reload-track"><div id="reload-bar"></div></div>
   </div>
-  <div id="death-screen" hidden><div id="death-text">Eliminated</div><div id="death-timer"></div></div>
+  <div id="death-screen" hidden><div id="death-text">Eliminated</div><div id="death-timer"></div><div id="spawn-picker" hidden></div></div>
   <div id="scoreboard" hidden></div>
 </div>
 

@@ -410,9 +410,102 @@ export class Game {
       if (x < -this.size * 0.4) this.spawns.red.push(p);
       if (x > this.size * 0.4) this.spawns.blue.push(p);
     }
+
+    // Named spawn spots from the map. Each gets a handful of clear points within a few meters.
+    this.zones = [];
+    (this.map.spawnZones || []).forEach((z, index) => {
+      const points = [];
+      for (let k = 0; k < 60 && points.length < 10; k++) {
+        const a = Math.random() * Math.PI * 2, d = k === 0 ? 0 : Math.sqrt(Math.random()) * 3.2;
+        const p = this.spawnPointAt(z.x + Math.cos(a) * d, z.z + Math.sin(a) * d, z.y || 0);
+        if (p) points.push(p);
+      }
+      // Nothing clear right there: use the nearest clear ground nearby.
+      for (let rr = 1; rr <= 16 && !points.length; rr++) {
+        for (let a = 0; a < Math.PI * 2 && !points.length; a += Math.PI / 8) {
+          const p = this.spawnPointAt(z.x + Math.cos(a) * rr, z.z + Math.sin(a) * rr, 0);
+          if (p) points.push(p);
+        }
+      }
+      if (points.length) this.zones.push({ ...z, index, points, center: points[0] });
+    });
+    this.spawnChoice = null; // null = automatic (safest)
+    this.buildSpawnPads();
+  }
+
+  // A clear standing spot at (x, z) on whatever surface is at height ~y, or null.
+  spawnPointAt(x, z, y) {
+    const r = 0.9;
+    if (Math.abs(x) > this.size - 2 || Math.abs(z) > this.size - 2) return null;
+    const probe = new THREE.Vector3(x, 0, z);
+    const ground = this.groundAt(probe, 0.3, y + 0.05);
+    if (Math.abs(ground - y) > 0.6) return null;
+    for (const b of this.solids) {
+      if (b.maxY <= ground + 0.05 || b.minY >= ground + HEIGHT) continue;
+      if (x + r > b.minX && x - r < b.maxX && z + r > b.minZ && z - r < b.maxZ) return null;
+    }
+    probe.y = ground;
+    return probe;
+  }
+
+  // Zones this character may spawn in: their team's bases in Team battle, every spot in Free-for-all.
+  allowedZones(c) {
+    if (this.mode !== 'tdm') return this.zones;
+    const mine = this.zones.filter((z) => z.team === c.team);
+    return mine.length ? mine : this.zones;
+  }
+
+  safestZone(c, zones) {
+    const enemies = [...this.chars.values()].filter((o) => o.alive && o !== c && this.isEnemy(c, o));
+    let best = zones[0], bestScore = -Infinity;
+    for (const z of zones) {
+      let minD = 60;
+      for (const e of enemies) minD = Math.min(minD, e.pos.distanceTo(z.center));
+      const score = minD + rand(0, 10); // a little variety so you don't always land in the same spot
+      if (score > bestScore) { bestScore = score; best = z; }
+    }
+    return best;
+  }
+
+  buildSpawnPads() {
+    this.pads = [];
+    const ringGeo = new THREE.RingGeometry(2.7, 3.1, 48);
+    const discGeo = new THREE.CircleGeometry(2.7, 48);
+    for (const z of this.zones) {
+      if (this.mode === 'tdm' && !z.team) continue; // shared spots aren't used in team battles
+      const color = this.mode === 'tdm' ? TEAM_COLORS[z.team] : 0xffb020;
+      const ringMat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.6, side: THREE.DoubleSide, depthWrite: false });
+      const discMat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.1, side: THREE.DoubleSide, depthWrite: false });
+      const ring = new THREE.Mesh(ringGeo, ringMat);
+      const disc = new THREE.Mesh(discGeo, discMat);
+      for (const m of [ring, disc]) {
+        m.rotation.x = -Math.PI / 2;
+        m.position.set(z.center.x, z.center.y + 0.04, z.center.z);
+        m.renderOrder = 1;
+        this.scene.add(m);
+      }
+      this.pads.push({ ring, disc, zone: z });
+    }
   }
 
   pickSpawn(c) {
+    const zones = this.allowedZones(c);
+    if (zones.length) {
+      let zone = null;
+      if (c.isLocal && this.spawnChoice !== null) zone = zones.find((z) => z.index === this.spawnChoice);
+      if (!zone) zone = this.safestZone(c, zones);
+      c.lastZone = zone;
+      // Within the zone, take the point farthest from anyone already standing there.
+      const others = [...this.chars.values()].filter((o) => o.alive && o !== c);
+      let best = zone.points[0], bestD = -1;
+      for (let i = 0; i < 5; i++) {
+        const p = zone.points[Math.floor(Math.random() * zone.points.length)];
+        let d = 99;
+        for (const o of others) d = Math.min(d, o.pos.distanceTo(p));
+        if (d > bestD) { bestD = d; best = p; }
+      }
+      return best.clone();
+    }
     let list = this.spawns.all;
     if (this.mode === 'tdm' && this.spawns[c.team]?.length) list = this.spawns[c.team];
     const enemies = [...this.chars.values()].filter((o) => o.alive && o !== c && this.isEnemy(c, o));
@@ -509,7 +602,7 @@ export class Game {
       killfeed: $('killfeed'), minimap: $('minimap'),
       vignette: $('damage-vignette'), scope: $('scope-overlay'),
       crosshair: $('crosshair'), hitmarker: $('hitmarker'),
-      death: $('death-screen'), deathText: $('death-text'), deathTimer: $('death-timer'),
+      death: $('death-screen'), deathText: $('death-text'), deathTimer: $('death-timer'), spawnPicker: $('spawn-picker'),
       scoreboard: $('scoreboard'), pause: $('pause-overlay'),
       toast: $('toast'), banner: $('kill-banner'), status: $('status-effects'),
       touch: $('touch-controls'),
@@ -540,6 +633,12 @@ export class Game {
       }
       if (e.code === 'KeyR') this.startReload(this.me);
       if (e.code === 'KeyQ' || e.code === 'KeyE') this.useAbility(this.me);
+      if (!this.me.alive && /^(Digit|Numpad)[0-9]$/.test(e.code)) {
+        const n = Number(e.code.slice(-1));
+        const zones = this.allowedZones(this.me);
+        if (n === 0) this.chooseSpawn(null);
+        else if (zones[n - 1]) this.chooseSpawn(zones[n - 1].index);
+      }
       if (e.code === 'Space') e.preventDefault();
     });
     this.on(window, 'keyup', (e) => {
@@ -821,7 +920,10 @@ export class Game {
       c.group.visible = true;
       c.group.rotation.x = 0;
     }
-    if (c.isLocal) this.hud.death.hidden = true;
+    if (c.isLocal) {
+      this.hud.death.hidden = true;
+      if (c.lastZone) this.toast(`Deployed at ${c.lastZone.name}`, 1600);
+    }
   }
 
   isEnemy(a, b) {
@@ -1076,6 +1178,7 @@ export class Game {
       this.zoom = false;
       this.hud.death.hidden = false;
       this.hud.deathText.textContent = byId === victim.id ? 'You were eliminated' : `Eliminated by ${this.nameOf(byId)}`;
+      this.renderSpawnPicker();
       this.killStreak = 0;
     }
     if (this.isHost) this.recordKill(byId, victim.id, head);
@@ -1266,13 +1369,16 @@ export class Game {
     const t = now();
     if (!c.alive) {
       const left = Math.max(0, c.respawnAt - t);
-      this.hud.deathTimer.textContent = `Respawning in ${left.toFixed(1)}s`;
+      const chosen = this.zones.find((z) => z.index === this.spawnChoice);
+      this.hud.deathTimer.textContent = `Respawning ${chosen ? 'at ' + chosen.name : 'at the safest spot'} in ${left.toFixed(1)}s`;
+      if (this.isTouch) this.hud.touch.hidden = true;
       if (left <= 0 && !this.ended) this.respawn(c);
       this.camera.position.set(c.pos.x, c.pos.y + 0.4 + Math.max(0, 1.2 - (t - c.deadAt) * 3), c.pos.z);
       this.camera.rotation.set(c.pitch, c.yaw, 0.3);
       return;
     }
 
+    if (this.isTouch && this.hud.touch.hidden) this.hud.touch.hidden = false;
     let fx = 0, fz = 0;
     const k = this.keys;
     if (k.has('KeyW') || k.has('ArrowUp')) fz -= 1;
@@ -1722,6 +1828,33 @@ export class Game {
     this.hud.scoreboard.innerHTML = html;
   }
 
+  chooseSpawn(index) {
+    this.spawnChoice = index;
+    this.renderSpawnPicker();
+  }
+
+  renderSpawnPicker() {
+    const el = this.hud.spawnPicker;
+    if (!el) return;
+    const zones = this.allowedZones(this.me);
+    if (!zones.length) {
+      el.hidden = true;
+      return;
+    }
+    el.hidden = false;
+    const btn = (key, label, choice, team) => {
+      const on = this.spawnChoice === choice;
+      const cls = 'sp-btn' + (on ? ' on' : '') + (this.mode === 'tdm' && team ? ' sp-' + team : '');
+      return `<button class="${cls}" data-choice="${choice === null ? 'auto' : choice}"><kbd>${key}</kbd>${this.escape(label)}</button>`;
+    };
+    el.innerHTML = `<div class="sp-title">Choose where to respawn</div>
+      <div class="sp-list">${btn(0, 'Auto · safest', null)}${zones.map((z, i) => btn(i + 1, z.name, z.index, z.team)).join('')}</div>
+      <div class="sp-hint">${this.isTouch ? 'Tap a spot' : 'Press a number key'} · spots are marked on the minimap</div>`;
+    for (const b of el.querySelectorAll('button')) {
+      b.addEventListener('click', () => this.chooseSpawn(b.dataset.choice === 'auto' ? null : Number(b.dataset.choice)));
+    }
+  }
+
   drawMinimap() {
     const g = this.mmCtx, S = 160, k = this.minimapScale;
     g.clearRect(0, 0, S, S);
@@ -1733,6 +1866,29 @@ export class Game {
       g.arc((c.pos.x + this.size) * k, (c.pos.z + this.size) * k, r, 0, Math.PI * 2);
       g.fill();
     };
+    const dead = !this.me.alive;
+    const allowed = this.allowedZones(this.me);
+    g.font = 'bold 10px "Chakra Petch", sans-serif';
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
+    for (const p of this.pads || []) {
+      const z = p.zone;
+      const n = allowed.indexOf(z);
+      const zx = (z.center.x + this.size) * k, zy = (z.center.z + this.size) * k;
+      const col = this.mode === 'tdm' ? (z.team === 'blue' ? '#5aa8ff' : '#ff6b5e') : '#ffb020';
+      const chosen = dead && this.spawnChoice === z.index;
+      g.strokeStyle = col;
+      g.globalAlpha = n >= 0 ? (dead ? 1 : 0.55) : 0.3;
+      g.lineWidth = chosen ? 2.5 : 1.5;
+      g.beginPath();
+      g.arc(zx, zy, chosen ? 6 : 4, 0, Math.PI * 2);
+      g.stroke();
+      if (dead && n >= 0) {
+        g.fillStyle = '#fff';
+        g.fillText(String(n + 1), zx, zy - 10);
+      }
+      g.globalAlpha = 1;
+    }
     for (const c of this.chars.values()) {
       if (c.isLocal || !c.alive || c.netSeen === false) continue;
       const friendly = !this.isEnemy(this.me, c);
@@ -1782,6 +1938,7 @@ export class Game {
       this.updateCharVisual(c, dt);
     }
     this.updateEffects();
+    for (const p of this.pads || []) p.ring.material.opacity = 0.45 + Math.sin(t * 2.5 + p.zone.index) * 0.2;
     if (this.snow) {
       const arr = this.snow.geometry.attributes.position.array;
       for (let i = 1; i < arr.length; i += 3) {
