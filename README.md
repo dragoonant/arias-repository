@@ -2,6 +2,12 @@
 
 A 3D arena shooter that runs in the browser and that you can play with friends. Pick a **role**, pick a **map**, add your **friends**, and battle online or against bots.
 
+**▶ Play now: https://dragoonant.github.io/arias-repository/**
+
+The GitHub Pages version is static hosting, so it supports **Play vs bots** only. For online play with friends, run the server (see below).
+
+To update the Pages site, copy the contents of `public/` to the `gh-pages` branch.
+
 ## Features
 
 - **3D first-person combat** built with Three.js: hitscan weapons, headshots, recoil, reloads, a killfeed, a minimap and a scoreboard.
