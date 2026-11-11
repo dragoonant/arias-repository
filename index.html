@@ -332,6 +332,20 @@ td small { color: var(--muted); font-size: 11px; letter-spacing: 0.08em; }
   #toast { top: 40%; white-space: normal; text-align: center; }
 }
 
+/* more games */
+.more-games { display: grid; gap: 12px; }
+.game-card { display: grid; grid-template-columns: auto 1fr auto; gap: 18px; align-items: center; padding: 16px; border-radius: 6px; border: 1px solid #6b5530; color: var(--fg); text-decoration: none;
+  background: linear-gradient(100deg, #2a1f16, #1d1712 55%, var(--panel)); transition: border-color .15s, transform .15s; min-width: 0; }
+.game-card:hover { border-color: #ffb27a; transform: translateY(-2px); }
+.gc-art { width: 84px; height: 84px; border-radius: 6px; position: relative; overflow: hidden; flex: none;
+  background: radial-gradient(circle at 50% 110%, #ff7a2f 0, #b8380b 28%, #2f3a24 60%, #1a2416 100%); }
+.gc-flame { position: absolute; left: 50%; bottom: 14px; width: 22px; height: 30px; transform: translateX(-50%); border-radius: 50% 50% 45% 45% / 60% 60% 40% 40%;
+  background: radial-gradient(circle at 50% 70%, #fff3c4, #ffb347 45%, #ff6a1a 80%); box-shadow: 0 0 22px #ff7a2f; }
+.gc-text { display: grid; gap: 4px; min-width: 0; }
+.gc-text b { font-family: Georgia, "Times New Roman", serif; font-size: 24px; letter-spacing: 0.02em; color: #f1e6cf; }
+.gc-text span { color: var(--muted); font-size: 15px; }
+@media (max-width: 560px) { .game-card { grid-template-columns: auto 1fr; } .gc-play { grid-column: 1 / -1; text-align: center; } .gc-art { width: 64px; height: 64px; } }
+
 /* coins + shop */
 .coin { display: inline-block; width: 0.9em; height: 0.9em; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #ffe08a, #f0a81c 60%, #b8730a); box-shadow: inset 0 0 0 2px rgba(120,70,0,0.35); vertical-align: -0.1em; }
 .wallet-line { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
@@ -409,6 +423,18 @@ td small { color: var(--muted); font-size: 11px; letter-spacing: 0.08em; }
         <p class="hint">Friends show as online when they open the game on the same server. Invite them from your room.</p>
       </div>
     </div>
+
+    <section class="more-games" aria-labelledby="more-games-title">
+      <h3 id="more-games-title" style="text-transform:uppercase; font-size:18px;">More games</h3>
+      <a class="game-card" href="emberwood/">
+        <span class="gc-art" aria-hidden="true"><span class="gc-flame"></span></span>
+        <span class="gc-text">
+          <b>Emberwood</b>
+          <span>Role-playing adventure. Choose Warrior, Ranger or Mage, take quests from the villagers, level up, collect gear and face the Cinder Warden.</span>
+        </span>
+        <span class="btn btn-primary gc-play">Play</span>
+      </a>
+    </section>
 
     <div class="home-grid">
       <div class="panel" style="display:grid; gap:14px;">
