@@ -27,13 +27,18 @@ const MIME = {
 
 const server = http.createServer((req, res) => {
   let urlPath = decodeURIComponent((req.url || '/').split('?')[0]);
-  if (urlPath === '/') urlPath = '/index.html';
+  if (urlPath.endsWith('/')) urlPath += 'index.html';
   const filePath = path.normalize(path.join(PUBLIC_DIR, urlPath));
   if (!filePath.startsWith(PUBLIC_DIR)) {
     res.writeHead(403);
     return res.end('Forbidden');
   }
   fs.readFile(filePath, (err, data) => {
+    if (err && err.code === 'EISDIR') {
+      // /emberwood -> /emberwood/ so relative links inside the page resolve
+      res.writeHead(301, { Location: urlPath + '/' });
+      return res.end();
+    }
     if (err) {
       res.writeHead(404);
       return res.end('Not found');

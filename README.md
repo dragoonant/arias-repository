@@ -8,6 +8,25 @@ The GitHub Pages version is static hosting, so it supports **Play vs bots** only
 
 To update the Pages site, copy the contents of `public/` to the `gh-pages` branch.
 
+## Emberwood (role-playing game)
+
+The site also has a second game: **Emberwood**, a top-down action RPG. Open it from **More games** on the StrikeZone home screen, or go to `/emberwood/`.
+
+- **Create a hero**: name them and choose **Warrior** (sword, Whirlwind, Battle Cry), **Ranger** (bow, Multishot, Roll) or **Mage** (staff, Fireball, Frost Nova), plus a tunic color.
+- **Talk to the villagers**: Elder Maren, Mira, Hunter Tom, Bran the blacksmith, Ivy the herbalist, Rosa at the inn and more. A gold **!** over someone's head means they have a quest; a green **?** means you can turn one in.
+- **Quests unlock the world**: clear the slimes in Sunfield Meadow, then the north gate opens to the Whispering Woods (wolves, a lost amulet). Finish the wolf hunt to enter the dark Ashen Cave, where the **Cinder Warden** boss slams, charges, rains fire and summons bats.
+- **Grow stronger**: earn XP and gold, level up, spend attribute points on Strength, Vitality, Intellect and Agility, buy and equip better weapons and armor, sell loot, rest at the inn.
+- **Saves automatically** in your browser. Works with keyboard and mouse or touch controls.
+
+| Key | Action |
+|---|---|
+| W A S D | Move |
+| Click / Space | Attack (aims at the mouse; on phones it aims at the nearest enemy) |
+| Q · E | Class skills |
+| F | Talk, open chests |
+| 1 · 2 | Health / mana potion |
+| C · I · L | Character, inventory, quest log |
+
 ## Features
 
 - **3D first-person combat** built with Three.js: hitscan weapons, headshots, recoil, reloads, a killfeed, a minimap and a scoreboard.
@@ -88,6 +107,7 @@ public/js/maps.js    map layouts and lighting
 public/js/weapons.js melee weapons, throwables, Armory items and coin rewards
 public/js/net.js     WebSocket client
 public/vendor/       Three.js (bundled so the game also works offline)
+public/emberwood/    Emberwood RPG (index.html, js/data.js, js/world.js, js/game.js)
 ```
 
 ### Adding your own map
