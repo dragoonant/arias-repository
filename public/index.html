@@ -344,6 +344,15 @@ td small { color: var(--muted); font-size: 11px; letter-spacing: 0.08em; }
 .gc-text { display: grid; gap: 4px; min-width: 0; }
 .gc-text b { font-family: Georgia, "Times New Roman", serif; font-size: 24px; letter-spacing: 0.02em; color: #f1e6cf; }
 .gc-text span { color: var(--muted); font-size: 15px; }
+.game-card-obby { border-color: #3a86ff; background: linear-gradient(100deg, #12305e, #172446 55%, var(--panel)); }
+.game-card-obby:hover { border-color: #8cc4ff; }
+.game-card-obby .gc-text b { font-family: var(--font-display); text-transform: none; }
+.gc-art-obby { background: linear-gradient(180deg, #7fd0ff, #c9ecff); }
+.gc-art-obby i { position: absolute; width: 24px; height: 9px; border-radius: 3px; box-shadow: 0 4px 0 rgba(0,0,0,0.2); }
+.gc-art-obby i:nth-child(1) { left: 8px; bottom: 14px; background: #ffd166; }
+.gc-art-obby i:nth-child(2) { left: 30px; bottom: 30px; background: #06d6a0; }
+.gc-art-obby i:nth-child(3) { left: 50px; bottom: 46px; background: #ff8fab; }
+.gc-art-obby i:nth-child(4) { left: 26px; bottom: 62px; background: #ff3b3b; width: 34px; height: 5px; }
 @media (max-width: 560px) { .game-card { grid-template-columns: auto 1fr; } .gc-play { grid-column: 1 / -1; text-align: center; } .gc-art { width: 64px; height: 64px; } }
 
 /* coins + shop */
@@ -431,6 +440,14 @@ td small { color: var(--muted); font-size: 11px; letter-spacing: 0.08em; }
         <span class="gc-text">
           <b>Emberwood</b>
           <span>Role-playing adventure. Choose Warrior, Ranger or Mage, take quests from the villagers, level up, collect gear and face the Cinder Warden.</span>
+        </span>
+        <span class="btn btn-primary gc-play">Play</span>
+      </a>
+      <a class="game-card game-card-obby" href="obby/">
+        <span class="gc-art gc-art-obby" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+        <span class="gc-text">
+          <b>Hopscape</b>
+          <span>3D obby. Run, jump and dodge across four obstacle courses, from Sunny Steps to Frost Summit. Beat your best time.</span>
         </span>
         <span class="btn btn-primary gc-play">Play</span>
       </a>

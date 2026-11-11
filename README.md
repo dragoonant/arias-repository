@@ -27,6 +27,15 @@ The site also has a second game: **Emberwood**, a top-down action RPG. Open it f
 | 1 · 2 | Health / mana potion |
 | C · I · L | Character, inventory, quest log |
 
+## Hopscape (3D obby)
+
+A third-person 3D obstacle course. Open it from **More games**, or go to `/obby/`.
+
+- **Four courses**: Sunny Steps (Easy, 10 stages), Lava Leap (Medium, 12), Neon Tower (Hard, 13) and Frost Summit (Expert, 14).
+- **Obstacles**: gaps, narrow beams, staircases, moving platforms, elevators, vanishing platforms, blinking platforms, spinning kill bars, sliding sweepers, kill stripes, jump pads, conveyor belts, tiny pillars and slippery ice.
+- **Checkpoint flags** at every stage. Falling or touching a glowing hazard sends you back to the last flag. Progress, best times and your avatar color are saved in your browser.
+- **Controls**: WASD to run (relative to the camera), Space to jump (hold for a full jump, tap for a short hop), mouse to turn the camera, scroll to zoom, R to return to your checkpoint, Esc to pause. Phones get a joystick, a jump button and drag-to-look.
+
 ## Features
 
 - **3D first-person combat** built with Three.js: hitscan weapons, headshots, recoil, reloads, a killfeed, a minimap and a scoreboard.
@@ -108,6 +117,7 @@ public/js/weapons.js melee weapons, throwables, Armory items and coin rewards
 public/js/net.js     WebSocket client
 public/vendor/       Three.js (bundled so the game also works offline)
 public/emberwood/    Emberwood RPG (index.html, js/data.js, js/world.js, js/game.js)
+public/obby/         Hopscape 3D obby (index.html, js/courses.js, js/game.js)
 ```
 
 ### Adding your own map

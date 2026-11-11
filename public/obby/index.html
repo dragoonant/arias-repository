@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Hopscape</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@500;700;800&display=swap">
+<style>
+/* Layout: the 3D course fills the screen; menus float on a bright sky; HUD is chunky pills. */
+:root {
+  --sky-1: #7fd0ff;
+  --sky-2: #c9ecff;
+  --ink: #1d2340;
+  --muted: #5d6685;
+  --card: #ffffff;
+  --line: #dfe7f3;
+  --go: #ff7a2f;
+  --go-2: #ff9c5a;
+  --grape: #6c4cff;
+  --mint: #22c58b;
+  --font-display: "Fredoka", "Trebuchet MS", system-ui, sans-serif;
+  --font-body: "Nunito", "Segoe UI", system-ui, sans-serif;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body { background: var(--sky-2); color: var(--ink); font: 16px/1.45 var(--font-body); overflow: hidden; -webkit-tap-highlight-color: transparent; user-select: none; }
+[hidden] { display: none !important; }
+button { font: inherit; color: inherit; cursor: pointer; }
+:focus-visible { outline: 3px solid var(--grape); outline-offset: 2px; }
+#view { position: fixed; inset: 0; display: block; touch-action: none; }
+h1, h2, h3 { font-family: var(--font-display); margin: 0; text-wrap: balance; }
+
+.btn { font-family: var(--font-display); font-weight: 600; font-size: 17px; padding: 10px 20px; border-radius: 14px; border: 2px solid var(--line); background: #fff; box-shadow: 0 3px 0 var(--line); transition: transform .1s, box-shadow .1s; }
+.btn:hover { transform: translateY(-1px); }
+.btn:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--line); }
+.btn-go { background: linear-gradient(180deg, var(--go-2), var(--go)); color: #fff; border-color: #e5631a; box-shadow: 0 3px 0 #c4500f; }
+.btn-go:active { box-shadow: 0 1px 0 #c4500f; }
+
+/* menu */
+#menu { position: fixed; inset: 0; z-index: 30; overflow-y: auto; background: linear-gradient(180deg, var(--sky-1), var(--sky-2) 70%);
+  padding-block: max(22px, env(safe-area-inset-top)) max(28px, env(safe-area-inset-bottom)); padding-left: max(16px, env(safe-area-inset-left)); padding-right: max(16px, env(safe-area-inset-right)); }
+#menu::before { content: ""; position: fixed; inset: 0; pointer-events: none; background:
+  radial-gradient(ellipse 160px 50px at 12% 22%, rgba(255,255,255,0.9), transparent 70%),
+  radial-gradient(ellipse 220px 60px at 82% 12%, rgba(255,255,255,0.85), transparent 70%),
+  radial-gradient(ellipse 180px 50px at 70% 78%, rgba(255,255,255,0.7), transparent 70%); }
+.menu-wrap { position: relative; max-width: 1100px; margin: 0 auto; display: grid; gap: 22px; }
+.title { display: flex; justify-content: space-between; align-items: end; gap: 20px; flex-wrap: wrap; }
+.logo { font-family: var(--font-display); font-weight: 700; font-size: clamp(48px, 10vw, 92px); line-height: 0.9; color: #fff; letter-spacing: -0.01em;
+  text-shadow: 0 4px 0 var(--grape), 0 8px 24px rgba(60,40,160,0.35); }
+.logo small { display: block; font-size: 0.24em; letter-spacing: 0.08em; color: var(--ink); text-shadow: none; margin-top: 10px; font-weight: 600; }
+.avatar-box { display: flex; gap: 14px; align-items: center; background: rgba(255,255,255,0.85); border-radius: 18px; padding: 10px 16px; border: 2px solid #fff; }
+#avatar-preview { width: 120px; height: 140px; }
+.avatar-box .label { font-family: var(--font-display); font-weight: 600; }
+.swatches { display: grid; grid-template-columns: repeat(4, 30px); gap: 8px; margin-top: 8px; }
+.swatch { width: 30px; height: 30px; border-radius: 9px; border: 2px solid rgba(0,0,0,0.12); }
+.swatch.on { outline: 3px solid var(--ink); outline-offset: 2px; }
+#course-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+@media (max-width: 1000px) { #course-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 560px) { #course-grid { grid-template-columns: 1fr; } }
+.course { background: var(--card); border-radius: 20px; overflow: hidden; box-shadow: 0 6px 0 var(--line), 0 14px 30px rgba(30,60,120,0.12); display: grid; grid-template-rows: auto 1fr; min-width: 0; }
+.course-art { position: relative; height: 110px; overflow: hidden; }
+.course-art span { position: absolute; width: 22%; height: 18%; border-radius: 6px; box-shadow: 0 6px 0 rgba(0,0,0,0.18); }
+.course-body { padding: 14px 16px 16px; display: grid; gap: 8px; align-content: start; }
+.course-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.course-top h3 { font-size: 22px; }
+.diff { font-family: var(--font-display); font-weight: 600; font-size: 13px; padding: 2px 10px; border-radius: 99px; color: #fff; white-space: nowrap; }
+.diff-easy { background: var(--mint); }
+.diff-medium { background: #f4a21b; }
+.diff-hard { background: #e83e8c; }
+.diff-expert { background: var(--grape); }
+.course p { margin: 0; color: var(--muted); font-size: 15px; }
+.course-stats { display: flex; gap: 6px 12px; flex-wrap: wrap; font-size: 13px; font-weight: 700; color: var(--muted); font-variant-numeric: tabular-nums; }
+.course-btns { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+.info-row { display: grid; grid-template-columns: 1fr auto; gap: 16px; align-items: start; }
+@media (max-width: 760px) { .info-row { grid-template-columns: 1fr; } }
+.keys { background: rgba(255,255,255,0.85); border-radius: 18px; padding: 14px 18px; display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; font-size: 15px; border: 2px solid #fff; }
+.keys kbd { font-family: var(--font-display); font-weight: 600; background: #fff; border: 2px solid var(--line); border-radius: 8px; padding: 0 8px; justify-self: start; }
+.back { color: var(--ink); font-weight: 800; text-decoration: none; background: rgba(255,255,255,0.85); padding: 10px 16px; border-radius: 14px; border: 2px solid #fff; }
+
+/* HUD */
+#hud { position: fixed; inset: 0; z-index: 10; pointer-events: none; font-family: var(--font-display); }
+.pill { background: rgba(255,255,255,0.92); border-radius: 99px; padding: 6px 16px; font-weight: 600; box-shadow: 0 3px 0 rgba(0,0,0,0.12); }
+.hud-top { position: absolute; top: max(12px, env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); display: grid; justify-items: center; gap: 6px; width: min(460px, calc(100vw - 32px)); }
+.hud-row { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+#hud-course { font-size: 15px; color: var(--muted); }
+#hud-stage { font-size: 20px; }
+#hud-time { font-size: 20px; font-variant-numeric: tabular-nums; min-width: 6.5ch; text-align: center; }
+.progress { width: 100%; height: 10px; background: rgba(255,255,255,0.7); border-radius: 99px; overflow: hidden; box-shadow: 0 2px 0 rgba(0,0,0,0.1); }
+#progress-fill { height: 100%; width: 0; background: linear-gradient(90deg, var(--mint), #3a86ff, var(--grape)); border-radius: 99px; }
+.hud-deaths { position: absolute; left: max(14px, env(safe-area-inset-left)); top: max(12px, env(safe-area-inset-top)); font-size: 17px; }
+.hud-help { position: absolute; left: 50%; transform: translateX(-50%); bottom: max(12px, env(safe-area-inset-bottom)); font-size: 14px; color: var(--ink); white-space: nowrap; }
+#toast { position: absolute; left: 50%; top: 24%; transform: translate(-50%, 0) scale(0.9); font-size: clamp(22px, 4vw, 34px); color: #fff; font-weight: 700; opacity: 0; transition: opacity .2s, transform .2s;
+  text-shadow: 0 3px 0 var(--mint), 0 6px 18px rgba(0,0,0,0.25); white-space: nowrap; }
+#toast.show { opacity: 1; transform: translate(-50%, 0) scale(1); }
+#flash { position: fixed; inset: 0; z-index: 11; pointer-events: none; background: rgba(255,60,60,0.35); opacity: 0; }
+#flash.on { animation: flash .55s ease-out; }
+@keyframes flash { 0% { opacity: 1; } 100% { opacity: 0; } }
+@media (pointer: coarse) { .hud-help { display: none; } }
+
+/* overlays */
+.overlay { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; background: rgba(20,30,60,0.35); padding: 16px; }
+.card { background: #fff; border-radius: 24px; padding: 24px 26px; display: grid; gap: 14px; width: min(440px, 100%); box-shadow: 0 8px 0 var(--line), 0 20px 50px rgba(20,30,80,0.25); text-align: center; }
+.card h2 { font-size: 32px; }
+.card p { margin: 0; color: var(--muted); }
+.card .btns { display: grid; gap: 10px; }
+.fin-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.fin-stats div { background: #f3f7fd; border-radius: 14px; padding: 10px; }
+.fin-stats b { display: block; font-family: var(--font-display); font-size: 28px; font-variant-numeric: tabular-nums; }
+.fin-stats span { font-size: 13px; color: var(--muted); font-weight: 700; }
+#fin-best { font-family: var(--font-display); font-weight: 600; color: var(--grape); }
+
+/* touch */
+#touch { position: fixed; inset: 0; z-index: 12; pointer-events: none; }
+#look { position: absolute; right: 0; top: 0; bottom: 0; width: 62%; pointer-events: auto; touch-action: none; }
+#stick { position: absolute; left: max(22px, env(safe-area-inset-left)); bottom: max(26px, env(safe-area-inset-bottom)); width: 130px; height: 130px; border-radius: 50%; background: rgba(255,255,255,0.3); border: 3px solid rgba(255,255,255,0.7); pointer-events: auto; touch-action: none; display: grid; place-items: center; }
+#knob { width: 56px; height: 56px; border-radius: 50%; background: rgba(255,255,255,0.85); }
+#t-jump { position: absolute; right: max(26px, env(safe-area-inset-right)); bottom: max(34px, env(safe-area-inset-bottom)); width: 96px; height: 96px; border-radius: 50%; pointer-events: auto; touch-action: none;
+  background: linear-gradient(180deg, var(--go-2), var(--go)); color: #fff; border: 3px solid #fff; font-family: var(--font-display); font-weight: 700; font-size: 20px; box-shadow: 0 4px 0 #c4500f; }
+#t-menu { position: absolute; right: max(14px, env(safe-area-inset-right)); top: max(12px, env(safe-area-inset-top)); pointer-events: auto; font-size: 15px; padding: 6px 14px; }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; } }
+</style>
+</head>
+<body>
+<section id="menu">
+  <div class="menu-wrap">
+    <div class="title">
+      <div class="logo">Hopscape<small>A 3D obby · jump, dodge, don't fall</small></div>
+      <div class="avatar-box">
+        <div id="avatar-preview"></div>
+        <div><span class="label">Your hopper</span><div class="swatches" id="swatches"></div></div>
+      </div>
+    </div>
+    <div id="course-grid"></div>
+    <div class="info-row">
+      <div class="keys">
+        <kbd>WASD</kbd><span>Run (relative to the camera)</span>
+        <kbd>Space</kbd><span>Jump · hold for higher, tap for a short hop</span>
+        <kbd>Mouse</kbd><span>Turn the camera · scroll to zoom</span>
+        <kbd>R</kbd><span>Back to your last checkpoint</span>
+        <kbd>Esc</kbd><span>Pause</span>
+      </div>
+      <a class="back" href="../">← Back to StrikeZone Arena</a>
+    </div>
+  </div>
+</section>
+
+<div id="hud" hidden>
+  <div class="hud-top">
+    <div class="hud-row"><span class="pill" id="hud-course"></span></div>
+    <div class="hud-row"><span class="pill" id="hud-stage">Stage 1</span><span class="pill" id="hud-time">0:00.00</span></div>
+    <div class="progress"><div id="progress-fill"></div></div>
+  </div>
+  <span class="pill hud-deaths">Falls <span id="hud-deaths">0</span></span>
+  <span class="pill hud-help">Space jump · R restart stage · Esc pause</span>
+  <div id="toast"></div>
+</div>
+<div id="flash"></div>
+
+<div class="overlay" id="pause" hidden>
+  <div class="card">
+    <h2 id="pause-title">Paused</h2>
+    <p id="pause-sub"></p>
+    <div class="btns">
+      <button class="btn btn-go" id="pause-go">Resume</button>
+      <button class="btn" id="pause-retry">Back to checkpoint</button>
+      <button class="btn" id="pause-menu">Course select</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="finish" hidden>
+  <div class="card">
+    <h2>Course complete!</h2>
+    <div class="fin-stats">
+      <div><b id="fin-time">0:00</b><span>Time</span></div>
+      <div><b id="fin-deaths">0</b><span>Falls</span></div>
+    </div>
+    <div id="fin-best"></div>
+    <div class="btns">
+      <button class="btn btn-go" id="fin-next">Next course</button>
+      <button class="btn" id="fin-again">Run it again</button>
+      <button class="btn" id="fin-menu">Course select</button>
+    </div>
+  </div>
+</div>
+
+<div id="touch" hidden>
+  <div id="look"></div>
+  <div id="stick"><div id="knob"></div></div>
+  <button id="t-jump">JUMP</button>
+  <button class="btn" id="t-menu">Pause</button>
+</div>
+
+<script type="module" src="js/game.js"></script>
+</body>
+</html>
