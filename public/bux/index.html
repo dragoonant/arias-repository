@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Ariabux Wallet</title>
+<title>Ariabux Avatar Shop</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@500;700;800&display=swap">
 <style>
@@ -64,6 +64,37 @@ h1, h2, h3 { font-family: var(--font-display); margin: 0; text-wrap: balance; }
 .section-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
 .section-head h2 { font-size: 26px; }
 .section-head span { color: var(--muted); font-size: 14px; }
+/* avatar shop */
+.shop { display: grid; grid-template-columns: minmax(260px, 340px) 1fr; gap: 18px; align-items: start; }
+@media (max-width: 820px) { .shop { grid-template-columns: 1fr; } }
+.stage { position: sticky; top: 16px; display: grid; gap: 12px; }
+@media (max-width: 820px) { .stage { position: static; } }
+#preview { position: relative; width: 100%; aspect-ratio: 4 / 5; max-width: 100%; border-radius: 16px; overflow: hidden; cursor: grab; touch-action: none;
+  background: radial-gradient(circle at 50% 80%, #1d6b55, #0b2620 70%); }
+#preview canvas { display: block; width: 100% !important; height: 100% !important; }
+#preview .hint { position: absolute; left: 0; right: 0; bottom: 8px; text-align: center; font-size: 12px; color: var(--muted); pointer-events: none; }
+#trying { position: absolute; left: 10px; top: 10px; font-family: var(--font-display); font-weight: 600; font-size: 13px; background: rgba(5,40,30,0.85); border: 1px solid var(--mint-2); color: var(--mint); padding: 3px 10px; border-radius: 99px; }
+.colors { display: flex; gap: 6px; flex-wrap: wrap; }
+.colors button { width: 28px; height: 28px; border-radius: 8px; border: 2px solid rgba(0,0,0,0.25); }
+.colors button.on { outline: 3px solid var(--mint); outline-offset: 2px; }
+.wearing { display: flex; gap: 6px; flex-wrap: wrap; }
+.chip { font-family: var(--font-display); font-weight: 600; font-size: 13px; padding: 3px 10px; border-radius: 99px; background: var(--panel-2); border: 1px solid var(--line); color: var(--ink); }
+.small-label { font-family: var(--font-display); font-size: 13px; color: var(--muted); letter-spacing: 0.06em; text-transform: uppercase; }
+.tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+.tabs button { font-family: var(--font-display); font-weight: 600; font-size: 16px; padding: 8px 16px; border-radius: 99px; border: 2px solid var(--line); background: var(--panel); }
+.tabs button.on { background: var(--mint); color: #05281e; border-color: var(--mint); }
+.item-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 1000px) { .item-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 420px) { .item-grid { grid-template-columns: 1fr; } }
+.item { background: var(--panel); border: 2px solid var(--line); border-radius: 16px; padding: 10px; display: grid; gap: 6px; align-content: start; min-width: 0; text-align: left; }
+.item.selected { border-color: var(--gold); }
+.item.worn { border-color: var(--mint); }
+.item img { width: 100%; aspect-ratio: 200 / 170; border-radius: 10px; background: radial-gradient(circle at 50% 70%, #1d6b55, #0b2620 75%); display: block; }
+.item h3 { font-size: 17px; }
+.item p { margin: 0; color: var(--muted); font-size: 13px; }
+.item .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.item .btn { padding: 6px 14px; font-size: 15px; border-radius: 11px; }
+.item .note { font-size: 12px; color: var(--muted); }
 .hat-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
 @media (max-width: 760px) { .hat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 460px) { .hat-grid { grid-template-columns: 1fr; } }
@@ -125,9 +156,22 @@ h1, h2, h3 { font-family: var(--font-display); margin: 0; text-wrap: balance; }
   </section>
   <div id="msg" role="status"></div>
 
-  <section id="hats" style="display:grid; gap:14px;">
-    <div class="section-head"><h2>Hat shop</h2><span>Hats show up on your hopper in Hopscape</span></div>
-    <div class="hat-grid" id="hat-grid"></div>
+  <section id="shop" style="display:grid; gap:14px;">
+    <div class="section-head"><h2>Avatar Shop</h2><span>Everything you buy shows up on your hopper in Hopscape</span></div>
+    <div class="shop">
+      <div class="panel stage">
+        <div id="preview"><span id="trying" hidden></span><span class="hint">Drag to spin</span></div>
+        <button class="btn" id="action-btn">Show it in action</button>
+        <span class="small-label">Body color</span>
+        <div class="colors" id="colors"></div>
+        <span class="small-label">Wearing</span>
+        <div class="wearing" id="wearing"></div>
+      </div>
+      <div style="display:grid; gap:12px; min-width:0;">
+        <div class="tabs" id="tabs" role="tablist"></div>
+        <div class="item-grid" id="items"></div>
+      </div>
+    </div>
   </section>
 
   <section style="display:grid; gap:14px;">
@@ -164,7 +208,7 @@ h1, h2, h3 { font-family: var(--font-display); margin: 0; text-wrap: balance; }
           <li><span>First clear: Hard · Expert</span><span>+175 · +300</span></li>
           <li><span>Replay · new best time</span><span>+10 · +25</span></li>
         </ul>
-        <span class="spend">Spend: hats for your hopper, right here</span>
+        <span class="spend">Spend: hats, heads, backpacks and shoes in the Avatar Shop above</span>
         <a class="btn" href="../obby/">Play Hopscape</a>
       </div>
     </div>
@@ -179,21 +223,117 @@ h1, h2, h3 { font-family: var(--font-display); margin: 0; text-wrap: balance; }
 </div>
 
 <script type="module">
-import { Bux, BUX_NAME, BUX_ICON, DAILY_BONUS, HATS, buxToast } from '../shared/bux.js';
+import { Bux, BUX_NAME, BUX_ICON, DAILY_BONUS, buxToast } from '../shared/bux.js';
+import { buildAvatar, AVATAR_ITEMS, SLOTS, BODY_COLORS, THREE } from '../shared/avatar.js';
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-
-// Flat drawings of each hat for the shop cards.
-const HAT_ART = {
-  cone: '<polygon points="55,8 32,78 78,78" fill="#ff70a6"/><polygon points="55,8 44,42 66,42" fill="#ff9ec4"/><rect x="28" y="76" width="54" height="8" rx="4" fill="#ffd23f"/><circle cx="55" cy="9" r="7" fill="#fff"/>',
-  propeller: '<path d="M22 80 Q55 30 88 80 Z" fill="#3a86ff"/><path d="M38 80 Q55 50 72 80 Z" fill="#ffd23f"/><rect x="53" y="30" width="4" height="20" fill="#555"/><rect x="25" y="26" width="30" height="6" rx="3" fill="#ff5d5d"/><rect x="55" y="26" width="30" height="6" rx="3" fill="#ffd23f"/>',
-  tophat: '<rect x="14" y="76" width="82" height="8" rx="4" fill="#24242c"/><rect x="32" y="22" width="46" height="58" rx="4" fill="#24242c"/><rect x="32" y="62" width="46" height="9" fill="#d62839"/>',
-  wizard: '<rect x="12" y="76" width="86" height="8" rx="4" fill="#5b2a9e"/><path d="M28 80 L62 6 L84 80 Z" fill="#6c3ac2"/><path d="M45 50 l3 6 6 1 -5 4 1 6 -5 -3 -5 3 1 -6 -5 -4 6 -1 Z" fill="#ffe066"/><circle cx="66" cy="32" r="3" fill="#ffe066"/>',
-  halo: '<ellipse cx="55" cy="46" rx="38" ry="12" fill="none" stroke="#ffe680" stroke-width="8"/><ellipse cx="55" cy="46" rx="38" ry="12" fill="none" stroke="#fff6c4" stroke-width="2"/>',
-  crown: '<path d="M18 80 L22 30 L40 56 L55 22 L70 56 L88 30 L92 80 Z" fill="#ffc83d" stroke="#c48a00" stroke-width="2"/><circle cx="35" cy="70" r="5" fill="#3bd1ff"/><circle cx="55" cy="68" r="6" fill="#ff3b5c"/><circle cx="75" cy="70" r="5" fill="#3bd1ff"/>',
+const hopColor = () => {
+  try { return Bux.bodyColor(JSON.parse(localStorage.getItem('hopscape_v1') || '{}').color || '#3a86ff'); } catch { return Bux.bodyColor('#3a86ff'); }
 };
+const ui = { tab: location.hash === '#hats' ? 'hat' : 'hat', trying: null, action: false };
 
+// ---------------------------------------------------------------- big 3D preview
+const holder = $('preview');
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+holder.prepend(renderer.domElement);
+const scene = new THREE.Scene();
+scene.add(new THREE.HemisphereLight(0xffffff, 0x335544, 1.6));
+const key = new THREE.DirectionalLight(0xffffff, 1.8);
+key.position.set(3, 5, 4);
+scene.add(key);
+const rim = new THREE.DirectionalLight(0x7dffd4, 0.8);
+rim.position.set(-3, 3, -4);
+scene.add(rim);
+const pad = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.2, 0.12, 40), new THREE.MeshStandardMaterial({ color: 0x0f3b30, roughness: 0.8 }));
+pad.position.y = -0.06;
+scene.add(pad);
+const camera = new THREE.PerspectiveCamera(30, 4 / 5, 0.1, 50);
+let avatar = null, spin = 0.5, dragging = false, lastX = 0, idleAt = 0;
+function sizePreview() {
+  const w = holder.clientWidth, h = holder.clientHeight;
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+}
+function currentOutfit() {
+  const o = Bux.outfit();
+  if (ui.trying) {
+    const it = AVATAR_ITEMS.find((i) => i.id === ui.trying);
+    if (it) o[it.slot] = it.id;
+  }
+  return o;
+}
+function rebuildAvatar() {
+  if (avatar) scene.remove(avatar);
+  avatar = buildAvatar(hopColor(), currentOutfit());
+  scene.add(avatar);
+}
+holder.addEventListener('pointerdown', (e) => { dragging = true; lastX = e.clientX; try { holder.setPointerCapture(e.pointerId); } catch { /* fine */ } });
+holder.addEventListener('pointermove', (e) => { if (!dragging) return; spin += (e.clientX - lastX) * 0.012; lastX = e.clientX; idleAt = performance.now(); });
+holder.addEventListener('pointerup', () => { dragging = false; });
+holder.addEventListener('pointercancel', () => { dragging = false; });
+$('action-btn').addEventListener('click', () => {
+  ui.action = !ui.action;
+  $('action-btn').textContent = ui.action ? 'Stand still' : 'Show it in action';
+});
+let last = performance.now(), t = 0;
+function frame() {
+  requestAnimationFrame(frame);
+  const now = performance.now(), dt = Math.min(0.05, (now - last) / 1000);
+  last = now;
+  t += dt;
+  if (!dragging && now - idleAt > 2500) spin += dt * 0.5;
+  if (avatar) {
+    avatar.rotation.y = spin;
+    const L = avatar.userData.limbs;
+    const sw = ui.action ? Math.sin(t * 10) * 0.7 : 0;
+    L.legL.rotation.x = sw; L.legR.rotation.x = -sw; L.armL.rotation.x = -sw; L.armR.rotation.x = sw;
+    avatar.position.y = ui.action ? Math.abs(Math.sin(t * 3)) * 0.5 : 0;
+    avatar.userData.animate(dt, ui.action, ui.action && avatar.position.y > 0.15);
+  }
+  camera.position.set(0, 1.9, 7.2);
+  camera.lookAt(0, 1.25, 0);
+  renderer.render(scene, camera);
+}
+
+// ---------------------------------------------------------------- item thumbnails, rendered from the real 3D models
+const thumbs = {};
+function makeThumbs() {
+  const r = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+  r.setPixelRatio(1);
+  r.setSize(200, 170);
+  r.outputColorSpace = THREE.SRGBColorSpace;
+  const sc = new THREE.Scene();
+  sc.add(new THREE.HemisphereLight(0xffffff, 0x335544, 1.7));
+  const d = new THREE.DirectionalLight(0xffffff, 1.6);
+  d.position.set(3, 5, 4);
+  sc.add(d);
+  const cam = new THREE.PerspectiveCamera(35, 200 / 170, 0.1, 50);
+  const frames = {
+    hat: [[1.3, 2.75, 2.3], [0, 2.35, 0]],
+    head: [[1.1, 2.2, 2.2], [0, 2.0, 0]],
+    back: [[-2.6, 2.1, -3.4], [0, 1.35, 0]],
+    shoes: [[1.3, 0.75, 1.9], [0, 0.12, 0.05]],
+  };
+  for (const it of AVATAR_ITEMS) {
+    const a = buildAvatar('#3a86ff', { [it.slot]: it.id });
+    // backs hang at rest so capes and wings face the camera; shoes show their effects
+    a.userData.animate(0.3, it.slot === 'shoes', false);
+    sc.add(a);
+    const [p, look] = frames[it.slot];
+    cam.position.set(...p);
+    cam.lookAt(...look);
+    r.render(sc, cam);
+    thumbs[it.id] = r.domElement.toDataURL('image/png');
+    sc.remove(a);
+  }
+  r.dispose();
+}
+
+// ---------------------------------------------------------------- page
 function render() {
   $('balance').textContent = Bux.balance().toLocaleString();
   $('big-coin').innerHTML = BUX_ICON;
@@ -202,47 +342,70 @@ function render() {
   $('daily-btn').innerHTML = canDaily ? `${BUX_ICON} Claim ${DAILY_BONUS}` : 'Claimed today';
   $('daily-text').textContent = canDaily ? `Claim ${DAILY_BONUS} free ${BUX_NAME} every day.` : 'You already claimed today. Come back tomorrow!';
 
-  const wearing = Bux.equipped('hat');
-  $('hat-grid').innerHTML = HATS.map((h) => {
-    const owned = Bux.owns(h.id);
-    const short = !owned && Bux.balance() < h.price;
-    let btn;
-    if (!owned) btn = `<button class="btn btn-mint" data-buy="${h.id}" ${short ? 'disabled' : ''}>Buy</button><span class="price">${BUX_ICON}${h.price}</span>`;
-    else if (wearing === h.id) btn = `<button class="btn" data-wear="">Take off</button><span class="note">Wearing in Hopscape</span>`;
-    else btn = `<button class="btn btn-mint" data-wear="${h.id}">Wear</button><span class="note">Owned</span>`;
-    return `<article class="hat${wearing === h.id ? ' wearing' : ''}">
-      <div class="hat-art"><svg viewBox="0 0 110 90" aria-hidden="true">${HAT_ART[h.id]}</svg></div>
-      <h3>${esc(h.name)}</h3><p>${esc(h.desc)}</p>
-      <div class="row">${btn}</div>
-      ${short ? `<span class="note">Need ${(h.price - Bux.balance()).toLocaleString()} more</span>` : ''}
+  $('tabs').innerHTML = SLOTS.map((s) => {
+    const owned = AVATAR_ITEMS.filter((i) => i.slot === s.id && Bux.owns(i.id)).length;
+    return `<button role="tab" aria-selected="${ui.tab === s.id}" class="${ui.tab === s.id ? 'on' : ''}" data-tab="${s.id}">${s.name}${owned ? ` · ${owned}` : ''}</button>`;
+  }).join('');
+  for (const b of $('tabs').children) b.addEventListener('click', () => { ui.tab = b.dataset.tab; render(); });
+
+  const outfit = Bux.outfit();
+  $('items').innerHTML = AVATAR_ITEMS.filter((i) => i.slot === ui.tab).map((it) => {
+    const owned = Bux.owns(it.id), worn = outfit[it.slot] === it.id, short = !owned && Bux.balance() < it.price;
+    let btns;
+    if (!owned) btns = `<button class="btn btn-mint" data-buy="${it.id}" ${short ? 'disabled' : ''}>Buy</button><span class="price">${BUX_ICON}${it.price}</span>`;
+    else if (worn) btns = `<button class="btn" data-wear="" data-slot="${it.slot}">Take off</button><span class="note">Wearing</span>`;
+    else btns = `<button class="btn btn-mint" data-wear="${it.id}" data-slot="${it.slot}">Wear</button><span class="note">Owned</span>`;
+    return `<article class="item${worn ? ' worn' : ''}${ui.trying === it.id ? ' selected' : ''}" data-try="${it.id}">
+      <img src="${thumbs[it.id] || ''}" alt="${esc(it.name)}">
+      <h3>${esc(it.name)}</h3><p>${esc(it.desc)}</p>
+      <div class="row">${btns}</div>
+      ${short ? `<span class="note">Need ${(it.price - Bux.balance()).toLocaleString()} more</span>` : ''}
     </article>`;
   }).join('');
-  for (const b of document.querySelectorAll('[data-buy]')) {
+  for (const card of $('items').querySelectorAll('[data-try]')) {
+    card.addEventListener('click', (e) => {
+      if (e.target.closest('button')) return;
+      ui.trying = ui.trying === card.dataset.try ? null : card.dataset.try;
+      render();
+    });
+  }
+  for (const b of $('items').querySelectorAll('[data-buy]')) {
     b.addEventListener('click', () => {
-      const h = HATS.find((x) => x.id === b.dataset.buy);
-      if (Bux.buy(h.id, h.price, h.name, 'Ariabux')) {
-        Bux.equip('hat', h.id);
-        $('msg').textContent = `You bought the ${h.name}. It's on your hopper in Hopscape now.`;
-        buxToast(-h.price, `Bought ${h.name}`);
+      const it = AVATAR_ITEMS.find((x) => x.id === b.dataset.buy);
+      if (Bux.buy(it.id, it.price, it.name, 'Avatar Shop')) {
+        Bux.equip(it.slot, it.id);
+        ui.trying = null;
+        $('msg').textContent = `You bought the ${it.name}! Your hopper is wearing it in Hopscape.`;
+        buxToast(-it.price, `Bought ${it.name}`);
       }
       render();
     });
   }
-  for (const b of document.querySelectorAll('[data-wear]')) {
+  for (const b of $('items').querySelectorAll('[data-wear]')) {
     b.addEventListener('click', () => {
-      Bux.equip('hat', b.dataset.wear || null);
-      const h = HATS.find((x) => x.id === b.dataset.wear);
-      $('msg').textContent = h ? `Wearing the ${h.name} in Hopscape.` : 'Hat taken off.';
+      Bux.equip(b.dataset.slot, b.dataset.wear || null);
+      ui.trying = null;
+      const it = AVATAR_ITEMS.find((x) => x.id === b.dataset.wear);
+      $('msg').textContent = it ? `Wearing the ${it.name}.` : 'Taken off.';
       render();
     });
   }
 
+  const tryIt = ui.trying && AVATAR_ITEMS.find((i) => i.id === ui.trying);
+  $('trying').hidden = !tryIt;
+  if (tryIt) $('trying').textContent = Bux.owns(tryIt.id) ? `Previewing: ${tryIt.name}` : `Trying on: ${tryIt.name}`;
+  const worn = SLOTS.map((s) => outfit[s.id] && AVATAR_ITEMS.find((i) => i.id === outfit[s.id])).filter(Boolean);
+  $('wearing').innerHTML = worn.length ? worn.map((i) => `<span class="chip">${esc(i.name)}</span>`).join('') : '<span class="note" style="color:var(--muted)">Nothing yet. Pick something from the shop.</span>';
+  const col = hopColor();
+  $('colors').innerHTML = BODY_COLORS.map((c) => `<button class="${c === col ? 'on' : ''}" style="background:${c}" data-color="${c}" aria-label="Body color ${c}"></button>`).join('');
+  for (const b of $('colors').children) b.addEventListener('click', () => { Bux.equip('color', b.dataset.color); render(); });
+
+  rebuildAvatar();
+
   const log = Bux.history();
-  $('log').innerHTML = log.length ? log.slice(0, 15).map((e) => {
-    const ago = timeAgo(e.at);
-    return `<li><span class="tag">${esc(e.game || BUX_NAME)}</span><span>${esc(e.reason)}<small>${ago}</small></span>
-      <span class="amt ${e.amount > 0 ? 'plus' : 'minus'}">${e.amount > 0 ? '+' : ''}${e.amount.toLocaleString()}</span></li>`;
-  }).join('') : '<li class="empty">Nothing yet. Play any game to start earning.</li>';
+  $('log').innerHTML = log.length ? log.slice(0, 15).map((e) => `<li><span class="tag">${esc(e.game || BUX_NAME)}</span><span>${esc(e.reason)}<small>${timeAgo(e.at)}</small></span>
+      <span class="amt ${e.amount > 0 ? 'plus' : 'minus'}">${e.amount > 0 ? '+' : ''}${e.amount.toLocaleString()}</span></li>`).join('')
+    : '<li class="empty">Nothing yet. Play any game to start earning.</li>';
 }
 function timeAgo(t) {
   const s = Math.max(0, (Date.now() - t) / 1000);
@@ -260,8 +423,13 @@ $('daily-btn').addEventListener('click', () => {
   }
   render();
 });
+window.addEventListener('resize', sizePreview);
 Bux.onChange(render);
+makeThumbs();
+sizePreview();
 render();
+frame();
+window.avatarShop = { ui, render };
 </script>
 </body>
 </html>

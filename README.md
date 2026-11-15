@@ -13,7 +13,8 @@ To update the Pages site, copy the contents of `public/` to the `gh-pages` branc
 **Ariabux** is one balance shared by every game on the site, with its own page at `/bux/` (also linked from **More games**).
 
 - **Earn it**: StrikeZone eliminations (100 each plus bonuses), Emberwood quests (40 to 200) and level-ups (15), Hopscape checkpoints you reach for the first time (3) and course clears (50 to 300 the first time, 10 after that, plus 25 for a new best), and a daily bonus of 25.
-- **Spend it**: StrikeZone's Armory (blades, upgrades, grenades), Emberwood's gold exchange (25 Ariabux for 150 gold, in the Inventory menu), and hats for your Hopscape hopper on the Ariabux page.
+- **Spend it**: StrikeZone's Armory (blades, upgrades, grenades), Emberwood's gold exchange (25 Ariabux for 150 gold, in the Inventory menu), and the **Avatar Shop** on the Ariabux page.
+- **Avatar Shop**: 24 items in four categories, all worn by your hopper in Hopscape: **Hats** (Party Cone, Propeller Cap, Top Hat, Wizard Hat, Halo, Golden Crown), **Heads** (Smiley, Pumpkin, Cat, Robot, Alien, Knight Helmet), **Backpacks** (Explorer Pack, Hero Cape, Turtle Shell, Jetpack, Angel Wings, Dragon Wings) and **Shoes** (Red Sneakers, Cowboy Boots, Rainbow Kicks, Ice Skates, Rocket Boots, Golden Boots). Try anything on in the 3D preview before buying, pick a body color, and switch items any time. Many items animate: propellers spin, capes flow, wings flap and jetpacks and rocket boots fire when you jump.
 - The wallet is saved in the browser and shared between all the games (and open tabs). StrikeZone coins earned before Ariabux existed were carried over.
 - To rename the currency, change `BUX_NAME` in `public/shared/bux.js`.
 
@@ -129,6 +130,7 @@ public/emberwood/    Emberwood RPG (index.html, js/data.js, js/world.js, js/game
 public/obby/         Hopscape 3D obby (index.html, js/courses.js, js/game.js)
 public/bux/          Ariabux wallet page (balance, daily bonus, hat shop, activity)
 public/shared/bux.js the shared Ariabux wallet used by every game
+public/shared/avatar.js the 3D hopper and every Avatar Shop item
 ```
 
 ### Adding your own map
