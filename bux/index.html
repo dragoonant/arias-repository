@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ariabux Wallet</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@500;700;800&display=swap">
+<style>
+/* Layout: a single column "vault" — balance hero, daily bonus, hat shop, earn/spend guide, activity log. */
+:root {
+  --bg: #071a15;
+  --panel: #0d2a22;
+  --panel-2: #12362c;
+  --line: #1f5143;
+  --ink: #e8fff6;
+  --muted: #8fbfae;
+  --mint: #7dffd4;
+  --mint-2: #2fd6a0;
+  --gold: #ffd36a;
+  --red: #ff8a80;
+  --font-display: "Fredoka", "Trebuchet MS", system-ui, sans-serif;
+  --font-body: "Nunito", "Segoe UI", system-ui, sans-serif;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: radial-gradient(ellipse at 50% -10%, #11473a, transparent 60%), var(--bg);
+  color: var(--ink); font: 16px/1.5 var(--font-body); min-height: 100vh;
+  padding-block: max(20px, env(safe-area-inset-top)) max(32px, env(safe-area-inset-bottom));
+  padding-left: max(16px, env(safe-area-inset-left)); padding-right: max(16px, env(safe-area-inset-right));
+}
+[hidden] { display: none !important; }
+button { font: inherit; color: inherit; cursor: pointer; }
+:focus-visible { outline: 3px solid var(--mint); outline-offset: 2px; }
+h1, h2, h3 { font-family: var(--font-display); margin: 0; text-wrap: balance; }
+.wrap { max-width: 980px; margin: 0 auto; display: grid; gap: 22px; }
+.nav { display: flex; gap: 8px; flex-wrap: wrap; }
+.nav a { color: var(--muted); text-decoration: none; font-weight: 700; font-size: 14px; padding: 6px 12px; border: 1px solid var(--line); border-radius: 99px; }
+.nav a:hover { color: var(--ink); border-color: var(--mint-2); }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 20px; min-width: 0; }
+.bux-ico { width: 1em; height: 1em; vertical-align: -0.14em; flex: none; }
+
+.hero { display: grid; grid-template-columns: auto 1fr auto; gap: 22px; align-items: center; }
+@media (max-width: 720px) { .hero { grid-template-columns: 1fr; text-align: center; justify-items: center; } }
+.hero .big-coin { font-size: 96px; line-height: 1; filter: drop-shadow(0 8px 24px rgba(47,214,160,0.45)); }
+.hero h1 { font-size: clamp(34px, 6vw, 52px); color: var(--mint); }
+.hero p { margin: 4px 0 0; color: var(--muted); max-width: 52ch; }
+.balance { text-align: right; }
+@media (max-width: 720px) { .balance { text-align: center; } }
+.balance .label { font-family: var(--font-display); color: var(--muted); font-size: 14px; letter-spacing: 0.1em; text-transform: uppercase; }
+.balance b { display: block; font-family: var(--font-display); font-size: clamp(44px, 8vw, 64px); line-height: 1; color: var(--ink); font-variant-numeric: tabular-nums; }
+
+.daily { display: flex; gap: 16px; align-items: center; justify-content: space-between; flex-wrap: wrap; background: linear-gradient(100deg, #154a3c, var(--panel)); }
+.daily h2 { font-size: 22px; }
+.daily p { margin: 2px 0 0; color: var(--muted); }
+.btn { font-family: var(--font-display); font-weight: 600; font-size: 17px; padding: 10px 20px; border-radius: 14px; border: 2px solid var(--line); background: var(--panel-2); display: inline-flex; gap: 8px; align-items: center; text-decoration: none; color: var(--ink); }
+.btn:hover { border-color: var(--mint-2); }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-mint { background: linear-gradient(180deg, var(--mint), var(--mint-2)); border-color: var(--mint); color: #05281e; }
+.btn-mint:hover { border-color: #fff; }
+
+.section-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.section-head h2 { font-size: 26px; }
+.section-head span { color: var(--muted); font-size: 14px; }
+.hat-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+@media (max-width: 760px) { .hat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 460px) { .hat-grid { grid-template-columns: 1fr; } }
+.hat { background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 16px; display: grid; gap: 8px; align-content: start; min-width: 0; }
+.hat.wearing { border-color: var(--mint); box-shadow: 0 0 0 1px var(--mint); }
+.hat-art { height: 110px; border-radius: 12px; background: radial-gradient(circle at 50% 75%, #1d6b55, #0b2620 75%); display: grid; place-items: center; }
+.hat-art svg { width: 110px; height: 100px; }
+.hat h3 { font-size: 20px; }
+.hat p { margin: 0; color: var(--muted); font-size: 14px; }
+.hat .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 4px; }
+.hat .note { font-size: 13px; color: var(--muted); }
+.price { font-family: var(--font-display); font-weight: 600; color: var(--mint); display: inline-flex; gap: 5px; align-items: center; font-variant-numeric: tabular-nums; }
+
+.guide { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+@media (max-width: 860px) { .guide { grid-template-columns: 1fr; } }
+.game { display: grid; gap: 10px; align-content: start; }
+.game h3 { font-size: 21px; }
+.game ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; }
+.game li { display: flex; justify-content: space-between; gap: 10px; font-size: 15px; border-bottom: 1px dashed var(--line); padding-bottom: 5px; }
+.game li span:last-child { font-family: var(--font-display); font-weight: 600; color: var(--mint); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.game .spend { font-size: 14px; color: var(--gold); }
+.game .btn { justify-self: start; }
+
+.log { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.log li { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; padding: 8px 4px; border-bottom: 1px solid var(--line); font-size: 15px; }
+.log .tag { font-family: var(--font-display); font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 99px; background: var(--panel-2); color: var(--muted); white-space: nowrap; }
+.log .amt { font-family: var(--font-display); font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.log .plus { color: var(--mint); }
+.log .minus { color: var(--red); }
+.log small { display: block; color: var(--muted); font-size: 12px; }
+.empty { color: var(--muted); margin: 0; }
+#msg { min-height: 1.4em; color: var(--mint); font-weight: 700; text-align: center; }
+.foot { color: var(--muted); font-size: 13px; text-align: center; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="nav" aria-label="Games">
+    <a href="../">StrikeZone Arena</a>
+    <a href="../emberwood/">Emberwood</a>
+    <a href="../obby/">Hopscape</a>
+  </nav>
+
+  <section class="panel hero">
+    <span class="big-coin" id="big-coin"></span>
+    <div>
+      <h1>Ariabux</h1>
+      <p>The money for every game on this site. Earn it in StrikeZone, Emberwood and Hopscape, then spend it in any of them.</p>
+    </div>
+    <div class="balance"><span class="label">Your balance</span><b id="balance">0</b></div>
+  </section>
+
+  <section class="panel daily">
+    <div>
+      <h2>Daily bonus</h2>
+      <p id="daily-text">Come back every day for free Ariabux.</p>
+    </div>
+    <button class="btn btn-mint" id="daily-btn">Claim</button>
+  </section>
+  <div id="msg" role="status"></div>
+
+  <section id="hats" style="display:grid; gap:14px;">
+    <div class="section-head"><h2>Hat shop</h2><span>Hats show up on your hopper in Hopscape</span></div>
+    <div class="hat-grid" id="hat-grid"></div>
+  </section>
+
+  <section style="display:grid; gap:14px;">
+    <div class="section-head"><h2>Earn and spend</h2></div>
+    <div class="guide">
+      <div class="panel game">
+        <h3>StrikeZone Arena</h3>
+        <ul>
+          <li><span>Each elimination</span><span>+100</span></li>
+          <li><span>Headshot · melee · backstab</span><span>+50 to +100</span></li>
+          <li><span>Kill streaks</span><span>+25 each</span></li>
+          <li><span>Hard bots and real friends</span><span>×1.5</span></li>
+        </ul>
+        <span class="spend">Spend: katanas, knives, grenades and upgrades in the Armory</span>
+        <a class="btn" href="../">Play StrikeZone</a>
+      </div>
+      <div class="panel game">
+        <h3>Emberwood</h3>
+        <ul>
+          <li><span>Slime Trouble</span><span>+40</span></li>
+          <li><span>Mira's Amulet</span><span>+50</span></li>
+          <li><span>Wolf Hunt</span><span>+60</span></li>
+          <li><span>The Cinder Warden</span><span>+200</span></li>
+          <li><span>Every level up</span><span>+15</span></li>
+        </ul>
+        <span class="spend">Spend: trade 25 Ariabux for 150 gold (Inventory menu)</span>
+        <a class="btn" href="../emberwood/">Play Emberwood</a>
+      </div>
+      <div class="panel game">
+        <h3>Hopscape</h3>
+        <ul>
+          <li><span>Each new checkpoint</span><span>+3</span></li>
+          <li><span>First clear: Easy · Medium</span><span>+50 · +100</span></li>
+          <li><span>First clear: Hard · Expert</span><span>+175 · +300</span></li>
+          <li><span>Replay · new best time</span><span>+10 · +25</span></li>
+        </ul>
+        <span class="spend">Spend: hats for your hopper, right here</span>
+        <a class="btn" href="../obby/">Play Hopscape</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" style="display:grid; gap:10px;">
+    <div class="section-head"><h2>Recent activity</h2></div>
+    <ul class="log" id="log"></ul>
+  </section>
+
+  <p class="foot">Ariabux is saved in this browser. Clearing your browsing data or switching devices starts a new wallet.</p>
+</div>
+
+<script type="module">
+import { Bux, BUX_NAME, BUX_ICON, DAILY_BONUS, HATS, buxToast } from '../shared/bux.js';
+
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+// Flat drawings of each hat for the shop cards.
+const HAT_ART = {
+  cone: '<polygon points="55,8 32,78 78,78" fill="#ff70a6"/><polygon points="55,8 44,42 66,42" fill="#ff9ec4"/><rect x="28" y="76" width="54" height="8" rx="4" fill="#ffd23f"/><circle cx="55" cy="9" r="7" fill="#fff"/>',
+  propeller: '<path d="M22 80 Q55 30 88 80 Z" fill="#3a86ff"/><path d="M38 80 Q55 50 72 80 Z" fill="#ffd23f"/><rect x="53" y="30" width="4" height="20" fill="#555"/><rect x="25" y="26" width="30" height="6" rx="3" fill="#ff5d5d"/><rect x="55" y="26" width="30" height="6" rx="3" fill="#ffd23f"/>',
+  tophat: '<rect x="14" y="76" width="82" height="8" rx="4" fill="#24242c"/><rect x="32" y="22" width="46" height="58" rx="4" fill="#24242c"/><rect x="32" y="62" width="46" height="9" fill="#d62839"/>',
+  wizard: '<rect x="12" y="76" width="86" height="8" rx="4" fill="#5b2a9e"/><path d="M28 80 L62 6 L84 80 Z" fill="#6c3ac2"/><path d="M45 50 l3 6 6 1 -5 4 1 6 -5 -3 -5 3 1 -6 -5 -4 6 -1 Z" fill="#ffe066"/><circle cx="66" cy="32" r="3" fill="#ffe066"/>',
+  halo: '<ellipse cx="55" cy="46" rx="38" ry="12" fill="none" stroke="#ffe680" stroke-width="8"/><ellipse cx="55" cy="46" rx="38" ry="12" fill="none" stroke="#fff6c4" stroke-width="2"/>',
+  crown: '<path d="M18 80 L22 30 L40 56 L55 22 L70 56 L88 30 L92 80 Z" fill="#ffc83d" stroke="#c48a00" stroke-width="2"/><circle cx="35" cy="70" r="5" fill="#3bd1ff"/><circle cx="55" cy="68" r="6" fill="#ff3b5c"/><circle cx="75" cy="70" r="5" fill="#3bd1ff"/>',
+};
+
+function render() {
+  $('balance').textContent = Bux.balance().toLocaleString();
+  $('big-coin').innerHTML = BUX_ICON;
+  const canDaily = Bux.canClaimDaily();
+  $('daily-btn').disabled = !canDaily;
+  $('daily-btn').innerHTML = canDaily ? `${BUX_ICON} Claim ${DAILY_BONUS}` : 'Claimed today';
+  $('daily-text').textContent = canDaily ? `Claim ${DAILY_BONUS} free ${BUX_NAME} every day.` : 'You already claimed today. Come back tomorrow!';
+
+  const wearing = Bux.equipped('hat');
+  $('hat-grid').innerHTML = HATS.map((h) => {
+    const owned = Bux.owns(h.id);
+    const short = !owned && Bux.balance() < h.price;
+    let btn;
+    if (!owned) btn = `<button class="btn btn-mint" data-buy="${h.id}" ${short ? 'disabled' : ''}>Buy</button><span class="price">${BUX_ICON}${h.price}</span>`;
+    else if (wearing === h.id) btn = `<button class="btn" data-wear="">Take off</button><span class="note">Wearing in Hopscape</span>`;
+    else btn = `<button class="btn btn-mint" data-wear="${h.id}">Wear</button><span class="note">Owned</span>`;
+    return `<article class="hat${wearing === h.id ? ' wearing' : ''}">
+      <div class="hat-art"><svg viewBox="0 0 110 90" aria-hidden="true">${HAT_ART[h.id]}</svg></div>
+      <h3>${esc(h.name)}</h3><p>${esc(h.desc)}</p>
+      <div class="row">${btn}</div>
+      ${short ? `<span class="note">Need ${(h.price - Bux.balance()).toLocaleString()} more</span>` : ''}
+    </article>`;
+  }).join('');
+  for (const b of document.querySelectorAll('[data-buy]')) {
+    b.addEventListener('click', () => {
+      const h = HATS.find((x) => x.id === b.dataset.buy);
+      if (Bux.buy(h.id, h.price, h.name, 'Ariabux')) {
+        Bux.equip('hat', h.id);
+        $('msg').textContent = `You bought the ${h.name}. It's on your hopper in Hopscape now.`;
+        buxToast(-h.price, `Bought ${h.name}`);
+      }
+      render();
+    });
+  }
+  for (const b of document.querySelectorAll('[data-wear]')) {
+    b.addEventListener('click', () => {
+      Bux.equip('hat', b.dataset.wear || null);
+      const h = HATS.find((x) => x.id === b.dataset.wear);
+      $('msg').textContent = h ? `Wearing the ${h.name} in Hopscape.` : 'Hat taken off.';
+      render();
+    });
+  }
+
+  const log = Bux.history();
+  $('log').innerHTML = log.length ? log.slice(0, 15).map((e) => {
+    const ago = timeAgo(e.at);
+    return `<li><span class="tag">${esc(e.game || BUX_NAME)}</span><span>${esc(e.reason)}<small>${ago}</small></span>
+      <span class="amt ${e.amount > 0 ? 'plus' : 'minus'}">${e.amount > 0 ? '+' : ''}${e.amount.toLocaleString()}</span></li>`;
+  }).join('') : '<li class="empty">Nothing yet. Play any game to start earning.</li>';
+}
+function timeAgo(t) {
+  const s = Math.max(0, (Date.now() - t) / 1000);
+  if (s < 60) return 'just now';
+  if (s < 3600) return `${Math.floor(s / 60)} min ago`;
+  if (s < 86400) return `${Math.floor(s / 3600)} h ago`;
+  return `${Math.floor(s / 86400)} d ago`;
+}
+
+$('daily-btn').addEventListener('click', () => {
+  const got = Bux.claimDaily();
+  if (got) {
+    $('msg').textContent = `+${got} ${BUX_NAME}! See you tomorrow.`;
+    buxToast(got, 'Daily bonus');
+  }
+  render();
+});
+Bux.onChange(render);
+render();
+</script>
+</body>
+</html>

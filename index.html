@@ -332,6 +332,7 @@ td small { color: var(--muted); font-size: 11px; letter-spacing: 0.08em; }
   #toast { top: 40%; white-space: normal; text-align: center; }
 }
 
+a.btn { text-decoration: none; display: inline-block; }
 /* more games */
 .more-games { display: grid; gap: 12px; }
 .game-card { display: grid; grid-template-columns: auto 1fr auto; gap: 18px; align-items: center; padding: 16px; border-radius: 6px; border: 1px solid #6b5530; color: var(--fg); text-decoration: none;
@@ -344,6 +345,11 @@ td small { color: var(--muted); font-size: 11px; letter-spacing: 0.08em; }
 .gc-text { display: grid; gap: 4px; min-width: 0; }
 .gc-text b { font-family: Georgia, "Times New Roman", serif; font-size: 24px; letter-spacing: 0.02em; color: #f1e6cf; }
 .gc-text span { color: var(--muted); font-size: 15px; }
+.game-card-bux { border-color: #11a77a; background: linear-gradient(100deg, #0c3a2e, #13241f 55%, var(--panel)); }
+.game-card-bux:hover { border-color: #7dffd4; }
+.game-card-bux .gc-text b { font-family: var(--font-display); text-transform: none; color: #7dffd4; }
+.gc-art-bux { display: grid; place-items: center; background: radial-gradient(circle at 50% 40%, #1f6e57, #0b2a22); }
+.gc-art-bux .coin { font-size: 52px; }
 .game-card-obby { border-color: #3a86ff; background: linear-gradient(100deg, #12305e, #172446 55%, var(--panel)); }
 .game-card-obby:hover { border-color: #8cc4ff; }
 .game-card-obby .gc-text b { font-family: var(--font-display); text-transform: none; }
@@ -356,9 +362,10 @@ td small { color: var(--muted); font-size: 11px; letter-spacing: 0.08em; }
 @media (max-width: 560px) { .game-card { grid-template-columns: auto 1fr; } .gc-play { grid-column: 1 / -1; text-align: center; } .gc-art { width: 64px; height: 64px; } }
 
 /* coins + shop */
-.coin { display: inline-block; width: 0.9em; height: 0.9em; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #ffe08a, #f0a81c 60%, #b8730a); box-shadow: inset 0 0 0 2px rgba(120,70,0,0.35); vertical-align: -0.1em; }
+.coin { position: relative; display: inline-block; width: 0.95em; height: 0.95em; border-radius: 50%; background: linear-gradient(135deg, #7dffd4, #11a77a); box-shadow: inset 0 0 0 1.5px #0b7a58; vertical-align: -0.12em; flex: none; }
+.coin::after { content: ""; position: absolute; inset: 22%; background: #fff; clip-path: polygon(50% 0, 62% 38%, 100% 50%, 62% 62%, 50% 100%, 38% 62%, 0 50%, 38% 38%); }
 .wallet-line { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-.coin-count { font-family: var(--font-display); font-size: 22px; font-weight: 700; color: #ffd36a; display: flex; align-items: center; gap: 8px; font-variant-numeric: tabular-nums; }
+.coin-count { font-family: var(--font-display); font-size: 22px; font-weight: 700; color: #7dffd4; display: flex; align-items: center; gap: 8px; font-variant-numeric: tabular-nums; }
 #shop { position: fixed; inset: 0; z-index: 40; overflow-y: auto; background: var(--bg); padding-block: max(20px, env(safe-area-inset-top)) max(28px, env(safe-area-inset-bottom)); padding-left: max(16px, env(safe-area-inset-left)); padding-right: max(16px, env(safe-area-inset-right)); }
 .shop-head { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; justify-content: space-between; }
 .shop-head h2 { font-size: clamp(28px, 5vw, 40px); text-transform: uppercase; }
@@ -383,8 +390,8 @@ td small { color: var(--muted); font-size: 11px; letter-spacing: 0.08em; }
 .slot b { color: #ffd36a; font-weight: 600; }
 .slot.on { border-color: var(--accent); background: rgba(255,176,32,0.22); }
 .slot.dim { opacity: 0.45; }
-#coins-hud { display: flex; align-items: center; gap: 6px; font-size: 18px; font-weight: 700; color: #ffd36a; text-shadow: 0 1px 3px #000; font-variant-numeric: tabular-nums; position: relative; }
-#coin-popup { position: absolute; right: 0; bottom: 100%; font-size: 18px; font-weight: 700; color: #ffd36a; text-shadow: 0 1px 4px #000; opacity: 0; white-space: nowrap; }
+#coins-hud { display: flex; align-items: center; gap: 6px; font-size: 18px; font-weight: 700; color: #7dffd4; text-shadow: 0 1px 3px #000; font-variant-numeric: tabular-nums; position: relative; }
+#coin-popup { position: absolute; right: 0; bottom: 100%; font-size: 18px; font-weight: 700; color: #7dffd4; text-shadow: 0 1px 4px #000; opacity: 0; white-space: nowrap; }
 #coin-popup.show { animation: coinpop 1.4s ease-out; }
 @keyframes coinpop { 0% { opacity: 0; transform: translateY(10px); } 15% { opacity: 1; transform: translateY(0); } 70% { opacity: 1; } 100% { opacity: 0; transform: translateY(-14px); } }
 @media (pointer: coarse) { #slots { display: none; } }
@@ -411,8 +418,9 @@ td small { color: var(--muted); font-size: 11px; letter-spacing: 0.08em; }
           <input class="input" id="name-input" maxlength="16" autocomplete="off" placeholder="Enter a name">
         </div>
         <div class="wallet-line">
-          <span class="coin-count"><span class="coin"></span><span class="coins-total">0</span> coins</span>
+          <span class="coin-count"><span class="coin"></span><span class="coins-total">0</span> Ariabux</span>
           <button class="btn" data-open-shop>Armory · knives, katanas, upgrades</button>
+          <a class="btn" href="bux/">Ariabux wallet</a>
         </div>
         <div class="play-buttons">
           <button class="btn btn-primary btn-big" id="btn-friends">Play with friends<small>Create a room or join one with a code</small></button>
@@ -442,6 +450,14 @@ td small { color: var(--muted); font-size: 11px; letter-spacing: 0.08em; }
           <span>Role-playing adventure. Choose Warrior, Ranger or Mage, take quests from the villagers, level up, collect gear and face the Cinder Warden.</span>
         </span>
         <span class="btn btn-primary gc-play">Play</span>
+      </a>
+      <a class="game-card game-card-bux" href="bux/">
+        <span class="gc-art gc-art-bux" aria-hidden="true"><span class="coin"></span></span>
+        <span class="gc-text">
+          <b>Ariabux</b>
+          <span>The money for every game here. Check your balance, claim a daily bonus and buy hats for your Hopscape hopper.</span>
+        </span>
+        <span class="btn btn-primary gc-play">Open</span>
       </a>
       <a class="game-card game-card-obby" href="obby/">
         <span class="gc-art gc-art-obby" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
@@ -676,7 +692,7 @@ td small { color: var(--muted); font-size: 11px; letter-spacing: 0.08em; }
     <div class="shop-head">
       <div style="display:grid; gap:4px;">
         <h2>Armory</h2>
-        <span class="hint">Earn coins by eliminating players and bots. Everything you buy is kept for future matches.</span>
+        <span class="hint">Spend Ariabux, the money shared by every game on this site. Earn it by eliminating players and bots. Everything you buy is kept for future matches.</span>
       </div>
       <div class="row">
         <span class="coin-count"><span class="coin"></span><span class="coins-total">0</span></span>
@@ -686,7 +702,7 @@ td small { color: var(--muted); font-size: 11px; letter-spacing: 0.08em; }
     <div id="shop-msg" role="status"></div>
     <div id="shop-body" style="display:grid; gap:24px;"></div>
     <div class="panel" style="display:grid; gap:6px;">
-      <span class="label">How to earn coins</span>
+      <span class="label">How to earn Ariabux in StrikeZone</span>
       <span class="hint" id="coin-rules"></span>
     </div>
   </div>
