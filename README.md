@@ -8,6 +8,15 @@ The GitHub Pages version is static hosting, so it supports **Play vs bots** only
 
 To update the Pages site, copy the contents of `public/` to the `gh-pages` branch.
 
+## Ariabux (shared money)
+
+**Ariabux** is one balance shared by every game on the site, with its own page at `/bux/` (also linked from **More games**).
+
+- **Earn it**: StrikeZone eliminations (100 each plus bonuses), Emberwood quests (40 to 200) and level-ups (15), Hopscape checkpoints you reach for the first time (3) and course clears (50 to 300 the first time, 10 after that, plus 25 for a new best), and a daily bonus of 25.
+- **Spend it**: StrikeZone's Armory (blades, upgrades, grenades), Emberwood's gold exchange (25 Ariabux for 150 gold, in the Inventory menu), and hats for your Hopscape hopper on the Ariabux page.
+- The wallet is saved in the browser and shared between all the games (and open tabs). StrikeZone coins earned before Ariabux existed were carried over.
+- To rename the currency, change `BUX_NAME` in `public/shared/bux.js`.
+
 ## Emberwood (role-playing game)
 
 The site also has a second game: **Emberwood**, a top-down action RPG. Open it from **More games** on the StrikeZone home screen, or go to `/emberwood/`.
@@ -51,7 +60,7 @@ A third-person 3D obstacle course. Open it from **More games**, or go to `/obby/
 
 - **Melee and throwables**: everyone carries a Combat Knife (press 2, or V for a quick swing). Hit someone from behind for a backstab. Unlock a **Katana** that lunges and hits everyone in front of you, then the **Dragon Katana**. **Throwing Knives** add a third slot, and **Frag Grenades** (G) bounce and explode.
 - **Live leaderboard**: the top 3 players by kills are shown at the top of the screen, and the leader wears a gold crown that everyone can see. You get a message whenever the lead changes.
-- **Coins and the Armory**: every elimination earns coins, with bonuses for headshots, melee kills, backstabs, knife throws, grenades and kill streaks. Spend them in the Armory (main menu, or press B mid-match) on blades, permanent upgrades (bigger mags, faster reloads, more damage, body armor, faster boots) and supplies (grenades, med kits). Coins and unlocks are saved in your browser.
+- **Ariabux and the Armory**: every elimination earns Ariabux (the site's shared money), with bonuses for headshots, melee kills, backstabs, knife throws, grenades and kill streaks. Spend them in the Armory (main menu, or press B mid-match) on blades, permanent upgrades (bigger mags, faster reloads, more damage, body armor, faster boots) and supplies (grenades, med kits). Coins and unlocks are saved in your browser.
 - **4 maps**: Rust Yard (shipping containers and a crane tower), Dune Outpost (desert fort ruins), Neon District (a city at night) and Frost Peak (snowy plateaus).
 - **2 modes**: Free-for-all, or Team battle (Red vs Blue).
 - **Spawn points**: every map has named spawn spots marked by glowing pads. In Team battle each team has its own three bases. When you're eliminated, pick where to respawn with the number keys (or tap on a phone), or leave it on *Auto* to land at the spot farthest from enemies.
@@ -118,6 +127,8 @@ public/js/net.js     WebSocket client
 public/vendor/       Three.js (bundled so the game also works offline)
 public/emberwood/    Emberwood RPG (index.html, js/data.js, js/world.js, js/game.js)
 public/obby/         Hopscape 3D obby (index.html, js/courses.js, js/game.js)
+public/bux/          Ariabux wallet page (balance, daily bonus, hat shop, activity)
+public/shared/bux.js the shared Ariabux wallet used by every game
 ```
 
 ### Adding your own map

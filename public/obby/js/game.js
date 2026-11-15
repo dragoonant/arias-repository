@@ -1,6 +1,13 @@
 // Hopscape: a 3D obstacle-course platformer.
 import * as THREE from '../../vendor/three.module.js';
 import { COURSES, buildCourse } from './courses.js';
+import { Bux, BUX_NAME, BUX_ICON, HATS, buxToast } from '../../shared/bux.js';
+
+// Ariabux (the site-wide money) earned in Hopscape.
+const BUX_FIRST_FINISH = { sunny: 50, lava: 100, neon: 175, frost: 300 };
+const BUX_CHECKPOINT = 3; // for each checkpoint you reach for the first time
+const BUX_REPEAT_FINISH = 10;
+const BUX_NEW_BEST = 25;
 
 const SAVE_KEY = 'hopscape_v1';
 const GRAVITY = 42;
@@ -185,10 +192,64 @@ function buildAvatar(color) {
   armR.add(box(0.26, 0.74, 0.3, body, 0, -0.34, 0), box(0.24, 0.16, 0.28, skin, 0, -0.76, 0));
   const head = box(0.6, 0.56, 0.56, skin, 0, 1.97, 0);
   g.add(head);
+  const hat = buildHat(Bux.equipped('hat'));
+  if (hat) {
+    g.add(hat);
+    g.userData.propeller = hat.userData.propeller || null;
+  }
   const eye = new THREE.MeshBasicMaterial({ color: 0x1a1a1a });
   g.add(box(0.09, 0.12, 0.02, eye, -0.13, 2.0, 0.29), box(0.09, 0.12, 0.02, eye, 0.13, 2.0, 0.29));
   g.add(box(0.2, 0.04, 0.02, eye, 0, 1.86, 0.29));
   P.limbs = { legL, legR, armL, armR };
+  return g;
+}
+
+// Hats bought with Ariabux sit on top of the head (head top is at y = 2.25).
+function buildHat(id) {
+  if (!id) return null;
+  const g = new THREE.Group();
+  const m = (color, extra = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.5, ...extra });
+  const add = (geo, mat, x, y, z) => { const mesh = new THREE.Mesh(geo, mat); mesh.position.set(x, y, z); mesh.castShadow = true; g.add(mesh); return mesh; };
+  if (id === 'cone') {
+    add(new THREE.ConeGeometry(0.26, 0.62, 16), m(0xff70a6), 0, 2.56, 0);
+    add(new THREE.CylinderGeometry(0.2, 0.22, 0.06, 16), m(0xffd23f), 0, 2.42, 0);
+    add(new THREE.SphereGeometry(0.08, 10, 8), m(0xffffff), 0, 2.9, 0);
+  } else if (id === 'propeller') {
+    add(new THREE.SphereGeometry(0.32, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), m(0x3a86ff), 0, 2.2, 0);
+    add(new THREE.CylinderGeometry(0.03, 0.03, 0.22, 6), m(0x444444), 0, 2.6, 0);
+    const prop = new THREE.Group();
+    prop.position.y = 2.72;
+    for (const [c, r] of [[0xff5d5d, 0], [0xffd23f, Math.PI / 2]]) {
+      const blade = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.03, 0.1), m(c));
+      blade.rotation.y = r;
+      prop.add(blade);
+    }
+    g.add(prop);
+    g.userData.propeller = prop;
+  } else if (id === 'tophat') {
+    add(new THREE.CylinderGeometry(0.44, 0.44, 0.05, 20), m(0x1d1d24), 0, 2.27, 0);
+    add(new THREE.CylinderGeometry(0.29, 0.29, 0.55, 20), m(0x1d1d24), 0, 2.56, 0);
+    add(new THREE.CylinderGeometry(0.295, 0.295, 0.1, 20), m(0xd62839), 0, 2.36, 0);
+  } else if (id === 'wizard') {
+    add(new THREE.CylinderGeometry(0.5, 0.5, 0.05, 20), m(0x5b2a9e), 0, 2.27, 0);
+    const cone = add(new THREE.ConeGeometry(0.34, 0.95, 18), m(0x6c3ac2), 0.04, 2.74, 0);
+    cone.rotation.z = -0.15;
+    for (const [x, y, z] of [[0.18, 2.55, 0.22], [-0.12, 2.75, 0.2], [0.05, 2.95, 0.12]]) {
+      add(new THREE.OctahedronGeometry(0.05), new THREE.MeshBasicMaterial({ color: 0xffe066 }), x, y, z);
+    }
+  } else if (id === 'halo') {
+    const ring = add(new THREE.TorusGeometry(0.3, 0.045, 10, 32), new THREE.MeshBasicMaterial({ color: 0xffe680 }), 0, 2.62, 0);
+    ring.rotation.x = Math.PI / 2;
+    ring.castShadow = false;
+  } else if (id === 'crown') {
+    const gold = m(0xffc83d, { metalness: 0.6, roughness: 0.3, emissive: 0x6b4a00, emissiveIntensity: 0.3 });
+    add(new THREE.CylinderGeometry(0.3, 0.3, 0.2, 20, 1, true), gold, 0, 2.35, 0).material.side = THREE.DoubleSide;
+    for (let i = 0; i < 5; i++) {
+      const a = (i / 5) * Math.PI * 2;
+      add(new THREE.ConeGeometry(0.07, 0.18, 6), gold, Math.cos(a) * 0.27, 2.53, Math.sin(a) * 0.27);
+      add(new THREE.SphereGeometry(0.035, 8, 6), new THREE.MeshBasicMaterial({ color: i % 2 ? 0xff3b5c : 0x3bd1ff }), Math.cos(a) * 0.305, 2.35, Math.sin(a) * 0.305);
+    }
+  }
   return g;
 }
 
@@ -551,6 +612,11 @@ function reachCheckpoint(part) {
   G.cp = part.index;
   const S = courseSave(G.def.id);
   if (part.kind === 'finish') return finishCourse();
+  if (G.cp > (S.maxCp || 0)) {
+    // first time this far on this course
+    S.maxCp = G.cp;
+    buxToast(Bux.earn(BUX_CHECKPOINT, `${G.def.name}: reached stage ${G.cp + 1}`, 'Hopscape'), `New checkpoint`);
+  }
   S.cp = G.cp;
   S.time = G.time;
   S.deaths = G.deaths;
@@ -671,6 +737,11 @@ function finishCourse() {
   const S = courseSave(G.def.id);
   const time = G.time;
   const newBest = S.best == null || time < S.best;
+  const firstClear = !S.everDone;
+  let bux;
+  if (firstClear) bux = Bux.earn(BUX_FIRST_FINISH[G.def.id] || 50, `First clear: ${G.def.name}`, 'Hopscape');
+  else bux = Bux.earn(BUX_REPEAT_FINISH + (newBest ? BUX_NEW_BEST : 0), newBest ? `New best on ${G.def.name}` : `Finished ${G.def.name}`, 'Hopscape');
+  S.everDone = true;
   if (newBest) { S.best = time; S.bestDeaths = G.deaths; }
   S.done = true;
   S.cp = 0;
@@ -685,6 +756,7 @@ function finishCourse() {
   $('fin-time').textContent = fmtTime(time);
   $('fin-deaths').textContent = G.deaths;
   $('fin-best').textContent = newBest ? 'New personal best!' : `Your best: ${fmtTime(S.best)}`;
+  $('fin-bux').innerHTML = `${BUX_ICON} +${bux} ${BUX_NAME}${firstClear ? ' · first clear bonus' : ''}`;
   const idx = COURSES.indexOf(G.def);
   const next = COURSES[idx + 1];
   $('fin-next').hidden = !next;
@@ -754,6 +826,8 @@ function showMenu() {
   });
   for (const b of grid.querySelectorAll('[data-play]')) b.addEventListener('click', () => startCourse(COURSES.find((c) => c.id === b.dataset.play), false));
   for (const b of grid.querySelectorAll('[data-restart]')) b.addEventListener('click', () => startCourse(COURSES.find((c) => c.id === b.dataset.restart), true));
+  renderHats();
+  $('menu-bux').innerHTML = `${BUX_ICON} ${Bux.balance().toLocaleString()} ${BUX_NAME}`;
   const sw = $('swatches');
   sw.innerHTML = '';
   for (const c of COLORS) {
@@ -766,6 +840,20 @@ function showMenu() {
   }
   drawPreview();
 }
+
+// Hats you own (bought on the Ariabux page) can be worn here.
+function renderHats() {
+  const el = $('hats');
+  const owned = HATS.filter((h) => Bux.owns(h.id));
+  const cur = Bux.equipped('hat');
+  const chip = (id, name) => `<button class="hat-chip${cur === id ? ' on' : ''}" data-hat="${id || ''}">${name}</button>`;
+  el.innerHTML = chip(null, 'No hat') + owned.map((h) => chip(h.id, h.name)).join('')
+    + `<a class="hat-chip hat-shop" href="../bux/#hats">${owned.length ? 'More hats' : 'Get hats'}</a>`;
+  for (const b of el.querySelectorAll('[data-hat]')) {
+    b.addEventListener('click', () => { Bux.equip('hat', b.dataset.hat || null); renderHats(); drawPreview(); });
+  }
+}
+Bux.onChange(() => { if (!$('menu').hidden) { $('menu-bux').innerHTML = `${BUX_ICON} ${Bux.balance().toLocaleString()} ${BUX_NAME}`; renderHats(); } });
 
 // little spinning avatar on the menu
 const pv = { renderer: null, scene: null, cam: null, mesh: null };
@@ -881,6 +969,7 @@ function frame() {
   last = t;
   if (pv.renderer && !$('menu').hidden) {
     pv.mesh.rotation.y += raw * 1.2;
+    if (pv.mesh.userData.propeller) pv.mesh.userData.propeller.rotation.y += raw * 14;
     pv.renderer.render(pv.scene, pv.cam);
   }
   if (!scene) return;
@@ -894,6 +983,7 @@ function frame() {
     updateParts(G.time, dt);
   }
   updateConfetti(dt);
+  if (P.mesh && P.mesh.userData.propeller) P.mesh.userData.propeller.rotation.y += raw * (Math.hypot(P.vel.x, P.vel.z) > 1 || !P.onGround ? 22 : 6);
   updateCamera(dt);
   if (G.mode === 'play' || G.mode === 'finished') {
     $('hud-stage').textContent = `Stage ${Math.min(G.cp + 1, G.def.stages.length)} / ${G.def.stages.length}`;

@@ -1,6 +1,11 @@
 // Emberwood: a small top-down action RPG.
 import { CLASSES, ATTRS, ITEMS, ENEMIES, QUESTS, NPCS, TUNIC_COLORS, CLASS_WEAPONS } from './data.js';
 import { buildWorld, T, isSolidTile } from './world.js';
+import { Bux, BUX_NAME, BUX_ICON, buxToast } from '../../shared/bux.js';
+
+// Ariabux (the site-wide money) earned in Emberwood, and the gold exchange rate.
+const BUX_REWARDS = { slimes: 40, amulet: 50, wolves: 60, warden: 200, level: 15 };
+const EXCHANGE = { bux: 25, gold: 150 };
 
 const SAVE_KEY = 'emberwood_save_v1';
 const LAYER_PX = 48; // resolution of the pre-rendered map layer
@@ -156,6 +161,7 @@ function completeQuest(id) {
   }
   sfx.quest();
   toast(`Quest complete: ${Q.title} · +${Q.reward.gold} gold${got.length ? ' · ' + got.join(', ') : ''}`, 4200);
+  buxToast(Bux.earn(BUX_REWARDS[id] || 0, `Quest: ${Q.title}`, 'Emberwood'), `Quest: ${Q.title}`);
   gainXp(Q.reward.xp || 0);
   renderTracker();
   save();
@@ -840,6 +846,7 @@ function gainXp(n) {
     G.effects.push({ kind: 'levelup', x: P.x, y: P.y, start: now(), dur: 1.2 });
     sparks(P.x, P.y - 0.5, '#ffd36a', 30);
     toast(`Level ${S.level}! You have ${S.points} attribute ${S.points === 1 ? 'point' : 'points'} to spend (press C).`, 4000);
+    buxToast(Bux.earn(BUX_REWARDS.level, `${S.name} reached level ${S.level}`, 'Emberwood'), `Level ${S.level}`);
     save();
   }
 }
@@ -1640,7 +1647,21 @@ function renderMenu() {
       html += `<li class="item">${icon(id)}<div class="info"><b>${esc(I.name)}${S.inv[id] > 1 ? ' ×' + S.inv[id] : ''}</b><small>${esc(itemStat(I))}${I.type !== 'consumable' && I.desc && itemStat(I) !== I.desc ? ' · ' + esc(I.desc) : ''}</small></div><div class="acts">${act}</div></li>`;
     }
     html += '</ul></div>';
+    html += `<div class="panel" style="padding:14px; display:grid; gap:8px;">
+      <span class="label">${BUX_NAME} exchange</span>
+      <p class="muted" style="margin:0; font-size:15px;">${BUX_NAME} is the money shared by all the games on this site. Trade some for gold here. You earn it from quests and level-ups.</p>
+      <div class="item"><span class="ico" style="background:#2fd6a0">${BUX_ICON}</span><div class="info"><b>You have ${Bux.balance().toLocaleString()} ${BUX_NAME}</b><small>${EXCHANGE.bux} ${BUX_NAME} → ${EXCHANGE.gold} gold</small></div>
+      <div class="acts"><button class="btn btn-small btn-ember" id="bux-trade" ${Bux.balance() < EXCHANGE.bux ? 'disabled' : ''}>Trade</button></div></div>
+    </div>`;
     body.innerHTML = html;
+    $('bux-trade').addEventListener('click', () => {
+      if (!Bux.spend(EXCHANGE.bux, `Traded for ${EXCHANGE.gold} gold`, 'Emberwood')) return;
+      S.gold += EXCHANGE.gold;
+      sfx.coin();
+      buxToast(-EXCHANGE.bux, `Traded for ${EXCHANGE.gold} gold`);
+      save();
+      renderMenu();
+    });
     for (const b of body.querySelectorAll('[data-use]')) b.addEventListener('click', () => { usePotion(b.dataset.use); renderMenu(); });
     for (const b of body.querySelectorAll('[data-equip]')) {
       b.addEventListener('click', () => {

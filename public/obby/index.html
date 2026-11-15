@@ -56,6 +56,12 @@ h1, h2, h3 { font-family: var(--font-display); margin: 0; text-wrap: balance; }
 .swatches { display: grid; grid-template-columns: repeat(4, 30px); gap: 8px; margin-top: 8px; }
 .swatch { width: 30px; height: 30px; border-radius: 9px; border: 2px solid rgba(0,0,0,0.12); }
 .swatch.on { outline: 3px solid var(--ink); outline-offset: 2px; }
+.hats { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; max-width: 260px; }
+.hat-chip { font-family: var(--font-display); font-weight: 600; font-size: 13px; padding: 4px 10px; border-radius: 99px; border: 2px solid var(--line); background: #fff; color: var(--ink); text-decoration: none; }
+.hat-chip.on { border-color: var(--grape); background: #efeaff; }
+.hat-shop { border-color: #2fd6a0; color: #0b7a58; }
+.bux-pill { display: inline-flex; align-items: center; gap: 8px; margin-top: 14px; background: rgba(255,255,255,0.9); border: 2px solid #2fd6a0; color: #0b5c43; border-radius: 99px; padding: 6px 14px; font-family: var(--font-display); font-weight: 600; font-size: 17px; text-decoration: none; }
+#fin-bux { font-family: var(--font-display); font-weight: 600; color: #0b7a58; display: flex; gap: 6px; align-items: center; justify-content: center; font-size: 18px; }
 #course-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
 @media (max-width: 1000px) { #course-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 560px) { #course-grid { grid-template-columns: 1fr; } }
@@ -126,10 +132,10 @@ h1, h2, h3 { font-family: var(--font-display); margin: 0; text-wrap: balance; }
 <section id="menu">
   <div class="menu-wrap">
     <div class="title">
-      <div class="logo">Hopscape<small>A 3D obby · jump, dodge, don't fall</small></div>
+      <div><div class="logo">Hopscape<small>A 3D obby · jump, dodge, don't fall</small></div><a class="bux-pill" id="menu-bux" href="../bux/"></a></div>
       <div class="avatar-box">
         <div id="avatar-preview"></div>
-        <div><span class="label">Your hopper</span><div class="swatches" id="swatches"></div></div>
+        <div><span class="label">Your hopper</span><div class="swatches" id="swatches"></div><div class="hats" id="hats"></div></div>
       </div>
     </div>
     <div id="course-grid"></div>
@@ -178,6 +184,7 @@ h1, h2, h3 { font-family: var(--font-display); margin: 0; text-wrap: balance; }
       <div><b id="fin-deaths">0</b><span>Falls</span></div>
     </div>
     <div id="fin-best"></div>
+    <div id="fin-bux"></div>
     <div class="btns">
       <button class="btn btn-go" id="fin-next">Next course</button>
       <button class="btn" id="fin-again">Run it again</button>

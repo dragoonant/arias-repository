@@ -5,6 +5,7 @@ import { Game } from './game.js';
 import { ROLES, ROLE_ORDER, roleStats } from './roles.js';
 import { MAPS, MAP_ORDER } from './maps.js';
 import { SHOP, COINS, newWallet } from './weapons.js';
+import { Bux, BUX_NAME } from '../shared/bux.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -40,9 +41,23 @@ const state = {
   lastResultsOnline: false,
 };
 
-// Coins, unlocks and supplies live in this browser and carry over between matches.
-state.wallet = Object.assign(newWallet(), load('wallet', {}));
+// Unlocks and supplies live in this browser and carry over between matches.
+// The money itself is Ariabux, the wallet shared by every game on the site.
+const savedWallet = load('wallet', null);
+state.wallet = Object.assign(newWallet(), savedWallet || {});
 if (!state.wallet.owned || typeof state.wallet.owned !== 'object') state.wallet.owned = {};
+// Players who earned StrikeZone coins before Ariabux existed keep them (beyond the old starting 250).
+Bux.migrateOnce('strikezone', savedWallet && typeof savedWallet.coins === 'number' ? savedWallet.coins - COINS.startBalance : 0,
+  'StrikeZone coins moved to Ariabux', 'StrikeZone');
+delete state.wallet.coins;
+Object.defineProperty(state.wallet, 'coins', {
+  get: () => Bux.balance(),
+  set: (v) => Bux.set(v, 'StrikeZone'),
+  enumerable: false, // keeps it out of the saved StrikeZone wallet
+  configurable: true,
+});
+if (savedWallet && 'coins' in savedWallet) save('wallet', state.wallet); // drop the old coin count from the saved wallet
+Bux.onChange(() => renderCoins());
 function saveWallet() {
   save('wallet', state.wallet);
   renderCoins();
@@ -560,7 +575,7 @@ net.on('end', (msg) => {
 function endMatch(results, online) {
   const earned = state.game ? state.game.coinsEarned : 0;
   $('results-coins').innerHTML = earned > 0
-    ? `<span class="coin"></span>+${earned.toLocaleString()} coins earned · ${state.wallet.coins.toLocaleString()} total`
+    ? `<span class="coin"></span>+${earned.toLocaleString()} ${BUX_NAME} earned · ${state.wallet.coins.toLocaleString()} total`
     : '';
   if (state.game) {
     state.game.destroy();
@@ -651,7 +666,7 @@ function renderShop() {
       const st = shopState(item);
       const card = document.createElement('div');
       card.className = 'shop-item' + (st.equipped ? ' equipped' : st.owned ? ' owned' : '');
-      const short = st.buy && st.disabled ? `<span class="have">Need ${(item.price - state.wallet.coins).toLocaleString()} more coins</span>` : '';
+      const short = st.buy && st.disabled ? `<span class="have">Need ${(item.price - state.wallet.coins).toLocaleString()} more ${BUX_NAME}</span>` : '';
       const have = item.kind === 'supply' ? `<span class="have">You have ${st.have} of ${item.max}</span>` : '';
       card.innerHTML = `<h4>${item.name}</h4><div class="shop-stat">${item.stat}</div><p>${item.desc}</p>${have}
         <button class="btn ${st.buy ? 'btn-primary' : ''}" ${st.disabled ? 'disabled' : ''}>${st.buy ? '<span class="coin"></span>' : ''}${st.label}</button>${short}`;
