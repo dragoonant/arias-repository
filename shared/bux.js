@@ -7,15 +7,46 @@ export const DAILY_BONUS = 25;
 const KEY = 'ariabux_v1';
 const START_BALANCE = 250;
 
-// Hats for your Hopscape hopper, bought on the Ariabux page.
-export const HATS = [
-  { id: 'cone', name: 'Party Cone', price: 60, desc: 'Every jump is a celebration.' },
-  { id: 'propeller', name: 'Propeller Cap', price: 150, desc: 'The propeller spins while you run.' },
-  { id: 'tophat', name: 'Top Hat', price: 120, desc: 'Fancy footwork deserves a fancy hat.' },
-  { id: 'wizard', name: 'Wizard Hat', price: 220, desc: 'Starry and very tall.' },
-  { id: 'halo', name: 'Halo', price: 260, desc: 'For flawless runs. Glows a little.' },
-  { id: 'crown', name: 'Golden Crown', price: 400, desc: 'For the ruler of every obby.' },
+// The catalog. `slot` decides where it goes; one item per slot.
+// Avatar items for your hopper (bought in the Avatar Shop on the Ariabux page, worn in Hopscape).
+export const AVATAR_ITEMS = [
+  { id: 'cone', slot: 'hat', name: 'Party Cone', price: 60, desc: 'Every jump is a celebration.' },
+  { id: 'propeller', slot: 'hat', name: 'Propeller Cap', price: 150, desc: 'Spins faster when you run.' },
+  { id: 'tophat', slot: 'hat', name: 'Top Hat', price: 120, desc: 'Fancy footwork deserves a fancy hat.' },
+  { id: 'wizard', slot: 'hat', name: 'Wizard Hat', price: 220, desc: 'Starry and very tall.' },
+  { id: 'halo', slot: 'hat', name: 'Halo', price: 260, desc: 'Floats and glows a little.' },
+  { id: 'crown', slot: 'hat', name: 'Golden Crown', price: 400, desc: 'For the ruler of every obby.' },
+
+  { id: 'smiley', slot: 'head', name: 'Smiley Head', price: 60, desc: 'Always happy, even after falling.' },
+  { id: 'pumpkin', slot: 'head', name: 'Pumpkin Head', price: 150, desc: 'Carved and ready for spooky season.' },
+  { id: 'cat', slot: 'head', name: 'Cat Head', price: 180, desc: 'Ears, whiskers and a pink nose.' },
+  { id: 'robot', slot: 'head', name: 'Robot Head', price: 200, desc: 'Glowing visor and a blinking antenna.' },
+  { id: 'alien', slot: 'head', name: 'Alien Head', price: 220, desc: 'Big eyes. Came in peace.' },
+  { id: 'knight', slot: 'head', name: 'Knight Helmet', price: 260, desc: 'Steel helm with a red plume that sways.' },
+
+  { id: 'pack', slot: 'back', name: 'Explorer Pack', price: 80, desc: 'Room for snacks and spare hats.' },
+  { id: 'cape', slot: 'back', name: 'Hero Cape', price: 120, desc: 'Flows behind you when you run and jump.' },
+  { id: 'shell', slot: 'back', name: 'Turtle Shell', price: 160, desc: 'Slow and steady. Mostly steady.' },
+  { id: 'jetpack', slot: 'back', name: 'Jetpack', price: 300, desc: 'Flames roar when you jump. (Looks only.)' },
+  { id: 'angelwings', slot: 'back', name: 'Angel Wings', price: 350, desc: 'Feathered wings that flap mid-air.' },
+  { id: 'dragonwings', slot: 'back', name: 'Dragon Wings', price: 450, desc: 'Purple bat-style wings for big leaps.' },
+
+  { id: 'sneakers', slot: 'shoes', name: 'Red Sneakers', price: 40, desc: 'Classic kicks with white soles.' },
+  { id: 'cowboy', slot: 'shoes', name: 'Cowboy Boots', price: 90, desc: 'Tall boots with a little gold trim.' },
+  { id: 'rainbow', slot: 'shoes', name: 'Rainbow Kicks', price: 120, desc: 'Five colors stacked up.' },
+  { id: 'skates', slot: 'shoes', name: 'Ice Skates', price: 140, desc: 'Perfect for Frost Summit. (Looks only.)' },
+  { id: 'rocket', slot: 'shoes', name: 'Rocket Boots', price: 250, desc: 'Little flames when you move.' },
+  { id: 'golden', slot: 'shoes', name: 'Golden Boots', price: 300, desc: 'Shiny, heavy, fabulous.' },
 ];
+export const SLOTS = [
+  { id: 'hat', name: 'Hats' },
+  { id: 'head', name: 'Heads' },
+  { id: 'back', name: 'Backpacks' },
+  { id: 'shoes', name: 'Shoes' },
+];
+export const BODY_COLORS = ['#ff5d5d', '#ff9f1c', '#ffd23f', '#3bceac', '#3a86ff', '#8338ec', '#ff70a6', '#f5f5f5'];
+
+export const HATS = AVATAR_ITEMS.filter((i) => i.slot === 'hat');
 
 function fresh() {
   return { balance: START_BALANCE, history: [], owned: {}, equipped: {}, daily: null, migrated: {} };
@@ -83,6 +114,16 @@ export const Bux = {
     S.equipped[slot] = id;
     write();
   },
+  // What the hopper is wearing: { hat, head, back, shoes } (only items you own).
+  outfit() {
+    const o = {};
+    for (const slot of SLOTS) {
+      const id = S.equipped[slot.id];
+      o[slot.id] = id && S.owned[id] ? id : null;
+    }
+    return o;
+  },
+  bodyColor: (fallback) => S.equipped.color || fallback,
   canClaimDaily: () => S.daily !== today(),
   claimDaily() {
     if (!Bux.canClaimDaily()) return 0;
